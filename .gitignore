@@ -1,0 +1,4 @@
+# ignore these 
+.DS_Store
+log/*.log
+tmp/**/*
