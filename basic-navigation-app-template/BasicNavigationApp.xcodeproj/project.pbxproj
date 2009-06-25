@@ -27,14 +27,14 @@
 			isa = PBXContainerItemProxy;
 			containerPortal = BDECEBE60FE4A65200D8707A /* Three20.xcodeproj */;
 			proxyType = 2;
-			remoteGlobalIDString = BEF31F3A0F352DF5000DE5D2 /* libThree20.a */;
+			remoteGlobalIDString = BEF31F3A0F352DF5000DE5D2;
 			remoteInfo = Three20;
 		};
 		BDA3C3460FF301DC00266CF6 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = BDECEBE60FE4A65200D8707A /* Three20.xcodeproj */;
 			proxyType = 1;
-			remoteGlobalIDString = BEF31F390F352DF5000DE5D2 /* Three20 */;
+			remoteGlobalIDString = BEF31F390F352DF5000DE5D2;
 			remoteInfo = Three20;
 		};
 /* End PBXContainerItemProxy section */
