@@ -1,0 +1,17 @@
+#import "Three20/Three20.h"  
+
+///////////////////////////////////////////////////////////////////////////////////////////////////  
+
+/////////////////////////////////////////////////////  
+//////   BNSubtextWithRedTitleAndURLTableField  /////  
+/////////////////////////////////////////////////////  
+
+@interface BNSubtextWithRedTitleAndURLTableField : TTSubtextTableField {  
+    NSString *_featureURL;  
+}  
+@property(nonatomic, retain) NSString *featureURL;  
+- (id)initWithText:(NSString*)text subtext:(NSString*)subtext featureURL:(NSString*)featureURL;  
+
+@end  
+
+/////////////////////////////////////////////////
