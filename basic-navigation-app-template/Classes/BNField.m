@@ -1,11 +1,3 @@
-//
-//  BNFieldd.m
-//  KnowledgePocApp
-//
-//  Created by Matt Vague on 10/04/09.
-//  Copyright 2009 __MyCompanyName__. All rights reserved.
-//
-
 #import "BNField.h"
 #import "BNCell.h"
 
