@@ -22,8 +22,6 @@
 		_label.adjustsFontSizeToFitWidth = YES;
 		
 		_subtextLabel.text = field.subtext;
-		_subtextLabel.font = TTSTYLEVAR(mySecondFont);
-		_subtextLabel.textColor = TTSTYLEVAR(mySecondColor);
 	}  
 }
 
