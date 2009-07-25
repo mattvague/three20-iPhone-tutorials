@@ -17,9 +17,7 @@
 		
 		TTSubtextTableField* field = object;
 		_label.text = field.text;
-		_label.font = TTSTYLEVAR(myFirstFont);
-		_label.textColor = TTSTYLEVAR(myFirstColor);
-		_label.adjustsFontSizeToFitWidth = YES;
+
 		
 		_subtextLabel.text = field.subtext;
 	}  
