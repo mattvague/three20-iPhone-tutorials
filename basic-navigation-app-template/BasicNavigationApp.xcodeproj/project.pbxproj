@@ -17,24 +17,16 @@
 		BD0D63D50FE4BE4800042660 /* RootViewDataSource.m in Sources */ = {isa = PBXBuildFile; fileRef = BD0D63D40FE4BE4800042660 /* RootViewDataSource.m */; };
 		BD0D63F40FE4BE9000042660 /* BNField.m in Sources */ = {isa = PBXBuildFile; fileRef = BD0D63F20FE4BE9000042660 /* BNField.m */; };
 		BD0D63F50FE4BE9000042660 /* BNCell.m in Sources */ = {isa = PBXBuildFile; fileRef = BD0D63F30FE4BE9000042660 /* BNCell.m */; };
-		BD12BFB8101BBB30004E7ECB /* libThree20.a in Frameworks */ = {isa = PBXBuildFile; fileRef = BD12BFB7101BBB2E004E7ECB /* libThree20.a */; };
 		BDA3C30E0FF301D400266CF6 /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BDA3C30D0FF301D400266CF6 /* QuartzCore.framework */; };
 		BDECEC600FE4A77E00D8707A /* RootViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = BDECEC5E0FE4A77E00D8707A /* RootViewController.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
-		BD12BFB6101BBB2E004E7ECB /* PBXContainerItemProxy */ = {
+		BD0DD8D2103A054E00A28E68 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = BD12BFAD101BBB2E004E7ECB /* Three20.xcodeproj */;
 			proxyType = 2;
-			remoteGlobalIDString = BEF31F3A0F352DF5000DE5D2;
-			remoteInfo = Three20;
-		};
-		BD12BFBA101BBB3B004E7ECB /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = BD12BFAD101BBB2E004E7ECB /* Three20.xcodeproj */;
-			proxyType = 1;
-			remoteGlobalIDString = BEF31F390F352DF5000DE5D2;
+			remoteGlobalIDString = BEF31F3A0F352DF5000DE5D2 /* libThree20.a */;
 			remoteInfo = Three20;
 		};
 /* End PBXContainerItemProxy section */
@@ -57,7 +49,7 @@
 		BD0D63F10FE4BE9000042660 /* BNCell.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = BNCell.h; sourceTree = "<group>"; };
 		BD0D63F20FE4BE9000042660 /* BNField.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = BNField.m; sourceTree = "<group>"; };
 		BD0D63F30FE4BE9000042660 /* BNCell.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = BNCell.m; sourceTree = "<group>"; };
-		BD12BFAD101BBB2E004E7ECB /* Three20.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = Three20.xcodeproj; path = three20/src/Three20.xcodeproj; sourceTree = SOURCE_ROOT; };
+		BD12BFAD101BBB2E004E7ECB /* Three20.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = Three20.xcodeproj; path = "../../../Work/Projects/Blog/Three20/three20-iPhone-tutorials/basic-navigation-app-template/three20/src/Three20.xcodeproj"; sourceTree = SOURCE_ROOT; };
 		BDA3C30D0FF301D400266CF6 /* QuartzCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = QuartzCore.framework; path = System/Library/Frameworks/QuartzCore.framework; sourceTree = SDKROOT; };
 		BDECEC5B0FE4A77E00D8707A /* RootViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = RootViewController.h; sourceTree = "<group>"; };
 		BDECEC5E0FE4A77E00D8707A /* RootViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = RootViewController.m; sourceTree = "<group>"; };
@@ -72,7 +64,6 @@
 				1DF5F4E00D08C38300B7A737 /* UIKit.framework in Frameworks */,
 				2892E4100DC94CBA00A64D0F /* CoreGraphics.framework in Frameworks */,
 				BDA3C30E0FF301D400266CF6 /* QuartzCore.framework in Frameworks */,
-				BD12BFB8101BBB30004E7ECB /* libThree20.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -147,10 +138,10 @@
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
-		BD12BFB3101BBB2E004E7ECB /* Products */ = {
+		BD0DD8CF103A054E00A28E68 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				BD12BFB7101BBB2E004E7ECB /* libThree20.a */,
+				BD0DD8D3103A054E00A28E68 /* libThree20.a */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -169,7 +160,6 @@
 			buildRules = (
 			);
 			dependencies = (
-				BD12BFBB101BBB3B004E7ECB /* PBXTargetDependency */,
 			);
 			name = BasicNavigationApp;
 			productName = BasicNavigationApp;
@@ -195,7 +185,7 @@
 			projectDirPath = "";
 			projectReferences = (
 				{
-					ProductGroup = BD12BFB3101BBB2E004E7ECB /* Products */;
+					ProductGroup = BD0DD8CF103A054E00A28E68 /* Products */;
 					ProjectRef = BD12BFAD101BBB2E004E7ECB /* Three20.xcodeproj */;
 				},
 			);
@@ -207,11 +197,11 @@
 /* End PBXProject section */
 
 /* Begin PBXReferenceProxy section */
-		BD12BFB7101BBB2E004E7ECB /* libThree20.a */ = {
+		BD0DD8D3103A054E00A28E68 /* libThree20.a */ = {
 			isa = PBXReferenceProxy;
 			fileType = archive.ar;
 			path = libThree20.a;
-			remoteRef = BD12BFB6101BBB2E004E7ECB /* PBXContainerItemProxy */;
+			remoteRef = BD0DD8D2103A054E00A28E68 /* PBXContainerItemProxy */;
 			sourceTree = BUILT_PRODUCTS_DIR;
 		};
 /* End PBXReferenceProxy section */
@@ -243,14 +233,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
-
-/* Begin PBXTargetDependency section */
-		BD12BFBB101BBB3B004E7ECB /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			name = Three20;
-			targetProxy = BD12BFBA101BBB3B004E7ECB /* PBXContainerItemProxy */;
-		};
-/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		1D6058940D05DD3E006BFB54 /* Debug */ = {
