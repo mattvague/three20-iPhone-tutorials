@@ -11,23 +11,25 @@ static NSString* kStringBoundary = @"3i2ndDfv2rTHiSisAbouNdArYfORhtTPEefj3q2f";
 
 @implementation TTURLRequest
 
-@synthesize delegates = _delegates, url = _url, response = _response, httpMethod = _httpMethod,
+@synthesize delegates = _delegates, URL = _URL, response = _response, httpMethod = _httpMethod,
   httpBody = _httpBody, parameters = _parameters, contentType = _contentType,
   cachePolicy = _cachePolicy, cacheExpirationAge = _cacheExpirationAge, cacheKey = _cacheKey,
   timestamp = _timestamp, userInfo = _userInfo, isLoading = _isLoading,
-  shouldHandleCookies = _shouldHandleCookies, respondedFromCache = _respondedFromCache;
+  shouldHandleCookies = _shouldHandleCookies, totalBytesLoaded = _totalBytesLoaded,
+  totalBytesExpected = _totalBytesExpected, respondedFromCache = _respondedFromCache,
+  headers = _headers;
 
 + (TTURLRequest*)request {
   return [[[TTURLRequest alloc] init] autorelease];
 }
 
-+ (TTURLRequest*)requestWithURL:(NSString*)url delegate:(id<TTURLRequestDelegate>)delegate {
-  return [[[TTURLRequest alloc] initWithURL:url delegate:delegate] autorelease];
++ (TTURLRequest*)requestWithURL:(NSString*)URL delegate:(id<TTURLRequestDelegate>)delegate {
+  return [[[TTURLRequest alloc] initWithURL:URL delegate:delegate] autorelease];
 }
 
-- (id)initWithURL:(NSString*)url delegate:(id<TTURLRequestDelegate>)delegate {
+- (id)initWithURL:(NSString*)URL delegate:(id<TTURLRequestDelegate>)delegate {
   if (self = [self init]) {
-    _url = [url retain];
+    _URL = [URL retain];
     if (delegate) {
       [_delegates addObject:delegate];
     }
@@ -37,41 +39,47 @@ static NSString* kStringBoundary = @"3i2ndDfv2rTHiSisAbouNdArYfORhtTPEefj3q2f";
 
 - (id)init {
   if (self = [super init]) {
-    _url = nil;
+    _URL = nil;
     _httpMethod = nil;
     _httpBody = nil;
+    _headers = nil;
     _parameters = nil;
     _contentType = nil;
     _delegates = TTCreateNonRetainingArray();
+    _files = nil;
     _response = nil;
-    _cachePolicy = TTURLRequestCachePolicyAny;
+    _cachePolicy = TTURLRequestCachePolicyDefault;
     _cacheExpirationAge = 0;
     _timestamp = nil;
     _cacheKey = nil;
     _userInfo = nil;
     _isLoading = NO;
     _shouldHandleCookies = YES;
+    _totalBytesLoaded = 0;
+    _totalBytesExpected = 0;
     _respondedFromCache = NO;
   }
   return self;
 }
 
 - (void)dealloc {
-  [_url release];
-  [_httpMethod release];
-  [_httpBody release];
-  [_parameters release];
-  [_contentType release];
-  [_delegates release];
-  [_response release];
-  [_timestamp release];
-  [_cacheKey release];
-  [_userInfo release];
+  TT_RELEASE_SAFELY(_URL);
+  TT_RELEASE_SAFELY(_httpMethod);
+  TT_RELEASE_SAFELY(_httpBody);
+  TT_RELEASE_SAFELY(_headers);
+  TT_RELEASE_SAFELY(_parameters);
+  TT_RELEASE_SAFELY(_contentType);
+  TT_RELEASE_SAFELY(_delegates);
+  TT_RELEASE_SAFELY(_files);
+  TT_RELEASE_SAFELY(_response);
+  TT_RELEASE_SAFELY(_timestamp);
+  TT_RELEASE_SAFELY(_cacheKey);
+  TT_RELEASE_SAFELY(_userInfo);
   [super dealloc];
 }
 
 - (NSString*)description {
-  return [NSString stringWithFormat:@"<TTURLRequest %@>", _url];
+  return [NSString stringWithFormat:@"<TTURLRequest %@>", _URL];
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
@@ -90,7 +98,7 @@ static NSString* kStringBoundary = @"3i2ndDfv2rTHiSisAbouNdArYfORhtTPEefj3q2f";
 
 - (NSString*)generateCacheKey {
   if ([_httpMethod isEqualToString:@"POST"]) {
-    NSMutableString* joined = [[[NSMutableString alloc] initWithString:self.url] autorelease]; 
+    NSMutableString* joined = [[[NSMutableString alloc] initWithString:self.URL] autorelease]; 
     NSEnumerator* e = [_parameters keyEnumerator];
     for (id key; key = [e nextObject]; ) {
       [joined appendString:key];
@@ -103,26 +111,25 @@ static NSString* kStringBoundary = @"3i2ndDfv2rTHiSisAbouNdArYfORhtTPEefj3q2f";
 
     return [self md5HexDigest:joined];
   } else {
-    return [self md5HexDigest:self.url];
+    return [self md5HexDigest:self.URL];
   }
 }
 
 - (NSData*)generatePostBody {
   NSMutableData *body = [NSMutableData data];
-  NSString *endLine = [NSString stringWithFormat:@"\r\n--%@\r\n", kStringBoundary];
+  NSString *beginLine = [NSString stringWithFormat:@"\r\n--%@\r\n", kStringBoundary];
 
   [body appendData:[[NSString stringWithFormat:@"--%@\r\n", kStringBoundary]
     dataUsingEncoding:NSUTF8StringEncoding]];
   
   for (id key in [_parameters keyEnumerator]) {
-    if (![[_parameters objectForKey:key] isKindOfClass:[UIImage class]]) {
-      NSString* value = [_parameters valueForKey:key];
-      
+    NSString* value = [_parameters valueForKey:key];
+    if (![value isKindOfClass:[UIImage class]]) {
+      [body appendData:[beginLine dataUsingEncoding:NSUTF8StringEncoding]];        
       [body appendData:[[NSString
         stringWithFormat:@"Content-Disposition: form-data; name=\"%@\"\r\n\r\n", key]
           dataUsingEncoding:NSUTF8StringEncoding]];
       [body appendData:[value dataUsingEncoding:NSUTF8StringEncoding]];
-      [body appendData:[endLine dataUsingEncoding:NSUTF8StringEncoding]];        
     }
   }
 
@@ -131,24 +138,44 @@ static NSString* kStringBoundary = @"3i2ndDfv2rTHiSisAbouNdArYfORhtTPEefj3q2f";
     if ([[_parameters objectForKey:key] isKindOfClass:[UIImage class]]) {
       UIImage* image = [_parameters objectForKey:key];
       CGFloat quality = [TTURLRequestQueue mainQueue].imageCompressionQuality;
-      NSData* imageData = UIImageJPEGRepresentation(image, quality);
+      NSData* data = UIImageJPEGRepresentation(image, quality);
       
-      [body appendData:[[NSString
-        stringWithFormat:@"Content-Disposition: form-data; name=\"%@\"; filename=\"photo\"\r\n", key]
+      [body appendData:[beginLine dataUsingEncoding:NSUTF8StringEncoding]];
+      [body appendData:[[NSString stringWithFormat:
+                       @"Content-Disposition: form-data; name=\"%@\"; filename=\"image.jpg\"\r\n",
+                       key]
           dataUsingEncoding:NSUTF8StringEncoding]];
       [body appendData:[[NSString
-        stringWithFormat:@"Content-Length: %d\r\n", imageData.length]
+        stringWithFormat:@"Content-Length: %d\r\n", data.length]
           dataUsingEncoding:NSUTF8StringEncoding]];  
       [body appendData:[[NSString
         stringWithString:@"Content-Type: image/jpeg\r\n\r\n"]
           dataUsingEncoding:NSUTF8StringEncoding]];  
-      [body appendData:imageData];
-      [body appendData:[endLine dataUsingEncoding:NSUTF8StringEncoding]];
-//      [imageData release];
+      [body appendData:data];
       imageKey = key;
     }
   }
   
+  for (NSInteger i = 0; i < _files.count; i += 3) {
+    NSData* data = [_files objectAtIndex:i];
+    NSString* mimeType = [_files objectAtIndex:i+1];
+    NSString* fileName = [_files objectAtIndex:i+2];
+      
+    [body appendData:[beginLine dataUsingEncoding:NSUTF8StringEncoding]];
+    [body appendData:[[NSString stringWithFormat:
+                       @"Content-Disposition: form-data; name=\"%@\"; filename=\"%@\"\r\n",
+                       fileName, fileName]
+          dataUsingEncoding:NSUTF8StringEncoding]];
+    [body appendData:[[NSString stringWithFormat:@"Content-Length: %d\r\n", data.length]
+          dataUsingEncoding:NSUTF8StringEncoding]];  
+    [body appendData:[[NSString stringWithFormat:@"Content-Type: %@\r\n\r\n", mimeType]
+          dataUsingEncoding:NSUTF8StringEncoding]];  
+    [body appendData:data];
+  }
+
+  [body appendData:[[NSString stringWithFormat:@"\r\n--%@--\r\n", kStringBoundary]
+                   dataUsingEncoding:NSUTF8StringEncoding]];
+
   // If an image was found, remove it from the dictionary to save memory while we
   // perform the upload
   if (imageKey) {
@@ -195,15 +222,36 @@ static NSString* kStringBoundary = @"3i2ndDfv2rTHiSisAbouNdArYfORhtTPEefj3q2f";
   return _cacheKey;
 }
 
+- (void)setValue:(NSString *)value forHTTPHeaderField:(NSString *)field {
+  if (!_headers) {
+    _headers = [[NSMutableDictionary alloc] init];
+  }
+  [_headers setObject:value forKey:field];
+}
+
+- (void)addFile:(NSData*)data mimeType:(NSString*)mimeType fileName:(NSString*)fileName {
+  if (!_files) {
+    _files = [[NSMutableArray alloc] init];
+  }
+  
+  [_files addObject:data];
+  [_files addObject:mimeType];
+  [_files addObject:fileName];
+}
+
 - (BOOL)send {
   if (_parameters) {
-    TTLOG(@"SEND %@ %@", self.url, self.parameters);
+    TTLOG(@"SEND %@ %@", self.URL, self.parameters);
   }
   return [[TTURLRequestQueue mainQueue] sendRequest:self];
 }
 
 - (void)cancel {
   [[TTURLRequestQueue mainQueue] cancelRequest:self];
+}
+
+- (NSURLRequest*)createNSURLRequest {
+  return [[TTURLRequestQueue mainQueue] createNSURLRequest:self URL:nil];
 }
 
 @end
@@ -242,8 +290,8 @@ static NSString* kStringBoundary = @"3i2ndDfv2rTHiSisAbouNdArYfORhtTPEefj3q2f";
 }
 
 - (void)dealloc {
-  [_topic release];
-  [_strong release];
+  TT_RELEASE_SAFELY(_topic);
+  TT_RELEASE_SAFELY(_strong);
   [super dealloc];
 }
 

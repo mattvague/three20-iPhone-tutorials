@@ -27,6 +27,56 @@ static const CGFloat kCancelHighlightThreshold = 4;
   return _highlighted;
 }
 
+- (void)setStyle:(TTStyle*)style forFrame:(TTStyledBoxFrame*)frame {
+  if ([frame isKindOfClass:[TTStyledInlineFrame class]]) {
+    TTStyledInlineFrame* inlineFrame = (TTStyledInlineFrame*)frame;
+    while (inlineFrame.inlinePreviousFrame) {
+      inlineFrame = inlineFrame.inlinePreviousFrame;
+    }
+    while (inlineFrame) {
+      inlineFrame.style = style;
+      inlineFrame = inlineFrame.inlineNextFrame;
+    }
+  } else {
+    frame.style = style;
+  }
+}
+
+- (void)setHighlightedFrame:(TTStyledBoxFrame*)frame{
+  if (frame != _highlightedFrame) {
+    TTTableView* tableView = (TTTableView*)[self ancestorOrSelfWithClass:[TTTableView class]];
+    
+    TTStyledBoxFrame* affectFrame = frame ? frame : _highlightedFrame;
+    NSString* className = affectFrame.element.className;
+    if (!className && [affectFrame.element isKindOfClass:[TTStyledLinkNode class]]) {
+      className = @"linkText:";
+    }
+    
+    if (className && [className rangeOfString:@":"].location != NSNotFound) {
+      if (frame) {
+        TTStyle* style = [TTSTYLESHEET styleWithSelector:className
+                                       forState:UIControlStateHighlighted];
+        [self setStyle:style forFrame:frame];
+        
+        [_highlightedFrame release];
+        _highlightedFrame = [frame retain];
+        [_highlightedNode release];
+        _highlightedNode = [frame.element retain];
+        tableView.highlightedLabel = self;
+      } else {
+        TTStyle* style = [TTSTYLESHEET styleWithSelector:className forState:UIControlStateNormal];
+        [self setStyle:style forFrame:_highlightedFrame];
+
+        TT_RELEASE_SAFELY(_highlightedFrame);
+        TT_RELEASE_SAFELY(_highlightedNode);
+        tableView.highlightedLabel = nil;
+      }
+
+      [self setNeedsDisplay];
+    }
+  }
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // NSObject
 
@@ -45,19 +95,84 @@ static const CGFloat kCancelHighlightThreshold = 4;
     self.font = TTSTYLEVAR(font);
     self.backgroundColor = TTSTYLEVAR(backgroundColor);
     self.contentMode = UIViewContentModeRedraw;
-    self.opaque = YES;
   }
   return self;
 }
 
 - (void)dealloc {
-  [_text release];
-  [_font release];
-  [_textColor release];
-  [_highlightedTextColor release];
-  [_highlightedNode release];
-  [_highlightedFrame release];
+  _text.delegate = nil;
+  TT_RELEASE_SAFELY(_text);
+  TT_RELEASE_SAFELY(_font);
+  TT_RELEASE_SAFELY(_textColor);
+  TT_RELEASE_SAFELY(_highlightedTextColor);
+  TT_RELEASE_SAFELY(_highlightedNode);
+  TT_RELEASE_SAFELY(_highlightedFrame);
   [super dealloc];
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////
+// UIResponder
+
+/*
+- (BOOL)canBecomeFirstResponder {
+  return YES;
+}
+
+- (BOOL)becomeFirstResponder {
+  BOOL became = [super becomeFirstResponder];
+
+  UIMenuController* menu = [UIMenuController sharedMenuController];
+  [menu setTargetRect:self.frame inView:self.superview];
+  [menu setMenuVisible:YES animated:YES];
+
+  self.highlighted = YES;
+  return became;
+}
+
+- (BOOL)resignFirstResponder {
+  self.highlighted = NO;
+  BOOL resigned = [super resignFirstResponder];
+  [[UIMenuController sharedMenuController] setMenuVisible:NO];
+  return resigned;
+}
+*/
+
+- (void)touchesBegan:(NSSet*)touches withEvent:(UIEvent*)event {
+  UITouch* touch = [touches anyObject];
+  CGPoint point = [touch locationInView:self];
+  point.x -= _contentInset.left;
+  point.y -= _contentInset.top;
+  
+  TTStyledBoxFrame* frame = [_text hitTest:point];
+  if (frame) {
+    [self setHighlightedFrame:frame];
+  }
+  
+  //[self performSelector:@selector(becomeFirstResponder) withObject:nil afterDelay:0.5];
+  
+  [super touchesBegan:touches withEvent:event];
+}
+
+- (void)touchesMoved:(NSSet*)touches withEvent:(UIEvent*)event {
+  [super touchesMoved:touches withEvent:event];
+}
+
+- (void)touchesEnded:(NSSet*)touches withEvent:(UIEvent*)event {
+  TTTableView* tableView = (TTTableView*)[self ancestorOrSelfWithClass:[TTTableView class]];
+  if (!tableView) {
+    if (_highlightedNode) {
+      [_highlightedNode performDefaultAction];    
+      [self setHighlightedFrame:nil];
+    }
+  }
+
+  // We definitely don't want to call this if the label is inside a TTTableView, because
+  // it winds up calling touchesEnded on the table twice, triggering the link twice
+  [super touchesEnded:touches withEvent:event];
+}
+
+- (void)touchesCancelled:(NSSet*)touches withEvent:(UIEvent*)event {
+  [super touchesCancelled:touches withEvent:event];
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -65,9 +180,9 @@ static const CGFloat kCancelHighlightThreshold = 4;
 
 - (void)drawRect:(CGRect)rect {
   if (_highlighted) {
-    [_highlightedTextColor setFill];
+    [self.highlightedTextColor setFill];
   } else {
-    [_textColor setFill];
+    [self.textColor setFill];
   }
   
   CGPoint origin = CGPointMake(rect.origin.x + _contentInset.left,
@@ -82,74 +197,24 @@ static const CGFloat kCancelHighlightThreshold = 4;
 
 - (CGSize)sizeThatFits:(CGSize)size {
   [self layoutIfNeeded];
-  //_text.width = size.width + (_contentInset.left + _contentInset.right);
   return CGSizeMake(_text.width + (_contentInset.left + _contentInset.right),
                     _text.height+ (_contentInset.top + _contentInset.bottom));
 }
 
+//////////////////////////////////////////////////////////////////////////////////////////////////
+// UIResponderStandardEditActions
+
+- (void)copy:(id)sender {
+  NSString* text = _text.rootNode.outerText;
+  UIPasteboard* pasteboard = [UIPasteboard generalPasteboard];
+  [pasteboard setValue:text forPasteboardType:@"public.utf8-plain-text"];
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// UIResponder
+// TTStyledTextDelegate
 
-- (void)setHighlightedFrame:(TTStyledBoxFrame*)frame {
-  TTTableView* tableView = (TTTableView*)[self firstParentOfClass:[TTTableView class]];
-  
-  if (frame) {
-    if (frame.element.className) {
-      frame.style = [TTSTYLESHEET styleWithSelector:frame.element.className
-                                  forState:UIControlStateHighlighted];
-    } else {
-      frame.style = [TTSTYLESHEET styleWithSelector:@"linkText:"
-                                  forState:UIControlStateHighlighted];
-    }
-
-    [_highlightedFrame release];
-    _highlightedFrame = [frame retain];
-    [_highlightedNode release];
-    _highlightedNode = [frame.element retain];
-
-    tableView.highlightedLabel = self;
-  } else {
-    if (_highlightedFrame.element.className) {
-      _highlightedFrame.style = [TTSTYLESHEET styleWithSelector:_highlightedFrame.element.className
-                                              forState:UIControlStateNormal];
-    } else {
-      _highlightedFrame.style = [TTSTYLESHEET styleWithSelector:@"linkText:"
-                                              forState:UIControlStateNormal];
-    }
-
-    
-    [_highlightedFrame release];
-    _highlightedFrame = nil;
-    [_highlightedNode release];
-    _highlightedNode = nil;
-
-    tableView.highlightedLabel = nil;
-  }
-
+- (void)styledTextNeedsDisplay:(TTStyledText*)text {
   [self setNeedsDisplay];
-}
-
-- (void)touchesBegan:(NSSet*)touches withEvent:(UIEvent*)event {
-  UITouch* touch = [touches anyObject];
-  CGPoint point = [touch locationInView:self];
-  point.x -= _contentInset.left;
-  point.y -= _contentInset.top;
-  
-  TTStyledBoxFrame* frame = [_text hitTest:point];
-  if (frame) {
-    [self setHighlightedFrame:frame];
-  }
-  
-  [super touchesBegan:touches withEvent:event];
-}
-
-- (void)touchesEnded:(NSSet*)touches withEvent:(UIEvent*)event {
-  if (_highlightedNode) {
-    [_highlightedNode performDefaultAction];    
-    [self setHighlightedFrame:nil];
-  }
-
-  [super touchesEnded:touches withEvent:event];
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -157,11 +222,22 @@ static const CGFloat kCancelHighlightThreshold = 4;
 
 - (void)setText:(TTStyledText*)text {
   if (text != _text) {
+    _text.delegate = nil;
     [_text release];
     _text = [text retain];
+    _text.delegate = self;
     _text.font = _font;
+    [self setNeedsLayout];
     [self setNeedsDisplay];
   }
+}
+
+- (NSString*)html {
+  return [_text description];
+}
+
+- (void)setHtml:(NSString*)html {
+  self.text = [TTStyledText textFromXHTML:html];
 }
 
 - (void)setFont:(UIFont*)font {
@@ -169,13 +245,13 @@ static const CGFloat kCancelHighlightThreshold = 4;
     [_font release];
     _font = [font retain];
     _text.font = _font;
-    [self setNeedsDisplay];
+    [self setNeedsLayout];
   }
 }
 
 - (UIColor*)textColor {
   if (!_textColor) {
-    _textColor = TTSTYLEVAR(textColor);
+    _textColor = [TTSTYLEVAR(textColor) retain];
   }
   return _textColor;
 }
@@ -190,17 +266,18 @@ static const CGFloat kCancelHighlightThreshold = 4;
 
 - (UIColor*)highlightedTextColor {
   if (!_highlightedTextColor) {
-    _highlightedTextColor = TTSTYLEVAR(highlightedTextColor);
+    _highlightedTextColor = [TTSTYLEVAR(highlightedTextColor) retain];
   }
   return _highlightedTextColor;
 }
 
 - (void)setHighlightedNode:(TTStyledElement*)node {
   if (node != _highlightedNode) {
-    [_highlightedNode release];
-    _highlightedNode = [node retain];
     if (!node) {
       [self setHighlightedFrame:nil];
+    } else {
+      [_highlightedNode release];
+      _highlightedNode = [node retain];
     }
   }  
 }

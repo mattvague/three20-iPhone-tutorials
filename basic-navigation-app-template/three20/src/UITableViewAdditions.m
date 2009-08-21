@@ -15,6 +15,14 @@
   return nil;
 }
 
+- (CGFloat)tableCellMargin {
+  if (self.style == UITableViewStyleGrouped) {
+    return 10;
+  } else {
+    return 0;
+  }
+}
+
 - (void)scrollToTop:(BOOL)animated {
   [self setContentOffset:CGPointMake(0,0) animated:animated];
 }
@@ -28,6 +36,38 @@
       NSIndexPath* indexPath = [NSIndexPath indexPathWithIndexes:ii length:2];
       [self scrollToRowAtIndexPath:indexPath atScrollPosition:UITableViewScrollPositionBottom
         animated:animated];
+    }
+  }
+}
+
+- (void)scrollToFirstRow:(BOOL)animated {
+  if ([self numberOfSections] > 0 && [self numberOfRowsInSection:0] > 0) {
+    NSIndexPath* indexPath = [NSIndexPath indexPathForRow:0 inSection:0];
+    [self scrollToRowAtIndexPath:indexPath atScrollPosition:UITableViewScrollPositionTop
+          animated:NO];
+  }
+}
+
+- (void)scrollToLastRow:(BOOL)animated {
+  if ([self numberOfSections] > 0) {
+    NSInteger section = [self numberOfSections]-1;
+    NSInteger rowCount = [self numberOfRowsInSection:section];
+    if (rowCount > 0) {
+      NSIndexPath* indexPath = [NSIndexPath indexPathForRow:rowCount-1 inSection:section];
+      [self scrollToRowAtIndexPath:indexPath
+                      atScrollPosition:UITableViewScrollPositionBottom animated:NO];
+    }
+  }
+}
+
+- (void)scrollFirstResponderIntoView {
+  UIView* responder = [self.window performSelector:@selector(firstResponder)];
+  UITableViewCell* cell = (UITableViewCell*)[responder ancestorOrSelfWithClass:[UITableViewCell class]];
+  if (cell) {
+    NSIndexPath* indexPath = [self indexPathForCell:cell];
+    if (indexPath) {
+      [self scrollToRowAtIndexPath:indexPath atScrollPosition:UITableViewScrollPositionMiddle
+            animated:YES];
     }
   }
 }

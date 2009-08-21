@@ -1,13 +1,25 @@
 #import "Three20/TTStyledNode.h"
-#import "Three20/TTURLRequest.h"
-#import "Three20/TTURLResponse.h"
-#import "Three20/TTNavigationCenter.h"
+#import "Three20/TTURLCache.h"
+#import "Three20/TTNavigator.h"
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
 
 @implementation TTStyledNode
 
 @synthesize nextSibling = _nextSibling, parentNode = _parentNode;
+
+//////////////////////////////////////////////////////////////////////////////////////////////////
+// private
+
+- (TTStyledNode*)findLastSibling:(TTStyledNode*)sibling {
+  while (sibling) {
+    if (!sibling.nextSibling) {
+      return sibling;
+    }
+    sibling = sibling.nextSibling;
+  }
+  return nil;
+}
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
 // NSObject
@@ -28,7 +40,7 @@
 }
 
 - (void)dealloc {
-  [_nextSibling release];
+  TT_RELEASE_SAFELY(_nextSibling);
   [super dealloc];
 }
 
@@ -59,11 +71,11 @@
   }
 }
 
-- (id)firstParentOfClass:(Class)cls {
+- (id)ancestorOrSelfWithClass:(Class)cls {
   if ([self isKindOfClass:cls]) {
     return self;
   } else {
-    return [_parentNode firstParentOfClass:cls];
+    return [_parentNode ancestorOrSelfWithClass:cls];
   }
 }
 
@@ -103,7 +115,7 @@
 }
 
 - (void)dealloc {
-  [_text release];
+  TT_RELEASE_SAFELY(_text);
   [super dealloc];
 }
 
@@ -128,69 +140,6 @@
   } else {
     return _text;
   }
-}
-
-@end
-
-//////////////////////////////////////////////////////////////////////////////////////////////////
-
-@implementation TTStyledImageNode
-
-@synthesize url = _url, image = _image;
-
-//////////////////////////////////////////////////////////////////////////////////////////////////
-// NSObject
-
-- (id)initWithURL:(NSString*)url {
-  if (self = [super init]) {
-    self.url = url;
-  }
-  return self;
-}
-
-- (id)init {
-  if (self = [super init]) {
-    _url = nil;
-    _image = nil;
-  }
-  return self;
-}
-
-- (void)dealloc {
-  [_url release];
-  [_image release];
-  [super dealloc];
-}
-
-- (NSString*)description {
-  return [NSString stringWithFormat:@"(%@)", _url];
-}
-
-//////////////////////////////////////////////////////////////////////////////////////////////////
-// TTStyledNode
-
-- (NSString*)outerHTML {
-  NSString* html = [NSString stringWithFormat:@"<img src=\"%@\"/>", _url];
-  if (_nextSibling) {
-    return [NSString stringWithFormat:@"%@%@", html, _nextSibling.outerHTML];
-  } else {
-    return html;
-  }
-}
-
-//////////////////////////////////////////////////////////////////////////////////////////////////
-// public
-
-- (UIImage*)image {
-  if (!_image && _url) {
-      TTURLRequest* request = [TTURLRequest requestWithURL:_url delegate:nil];
-      TTURLImageResponse* response = [[[TTURLImageResponse alloc] init] autorelease];
-      request.response = response;
-      if ([request send]) {
-        _image = [response.image retain];
-      }
-  }
-  return _image;
 }
 
 @end
@@ -228,8 +177,8 @@
 }
 
 - (void)dealloc {
-  [_firstChild release];
-  [_className release];
+  TT_RELEASE_SAFELY(_firstChild);
+  TT_RELEASE_SAFELY(_className);
   [super dealloc];
 }
 
@@ -272,16 +221,69 @@
 - (void)addChild:(TTStyledNode*)child {
   if (!_firstChild) {
     _firstChild = [child retain];
-    _lastChild = child;
-    child.parentNode = self;
+    _lastChild = [self findLastSibling:child];
   } else {
     _lastChild.nextSibling = child;
-    _lastChild = child;
+    _lastChild = [self findLastSibling:child];
   }
+  child.parentNode = self;
 }
 
 - (void)addText:(NSString*)text {
   [self addChild:[[[TTStyledTextNode alloc] initWithText:text] autorelease]];
+}
+
+- (void)replaceChild:(TTStyledNode*)oldChild withChild:(TTStyledNode*)newChild {
+  if (oldChild == _firstChild) {
+    newChild.nextSibling = oldChild.nextSibling;
+    oldChild.nextSibling = nil;
+    newChild.parentNode = self;
+    if (oldChild == _lastChild) {
+      _lastChild = newChild;
+    }
+    [_firstChild release];
+    _firstChild = [newChild retain];
+  } else {
+    TTStyledNode* node = _firstChild;
+    while (node) {
+      if (node.nextSibling == oldChild) {
+        [oldChild retain];
+        if (newChild) {
+          newChild.nextSibling = oldChild.nextSibling;
+          node.nextSibling = newChild;
+        } else {
+          node.nextSibling = oldChild.nextSibling;
+        }
+        oldChild.nextSibling = nil;
+        newChild.parentNode = self;
+        if (oldChild == _lastChild) {
+          _lastChild = newChild ? newChild : node;
+        }
+        [oldChild release];
+        break;
+      }
+      node = node.nextSibling;
+    }
+  }
+}
+
+- (TTStyledNode*)getElementByClassName:(NSString*)className {
+  TTStyledNode* node = _firstChild;
+  while (node) {
+    if ([node isKindOfClass:[TTStyledElement class]]) {
+      TTStyledElement* element = (TTStyledElement*)node;
+      if ([element.className isEqualToString:className]) {
+        return element;
+      }
+
+      TTStyledNode* found = [element getElementByClassName:className];
+      if (found) {
+        return found;
+      }
+    }
+    node = node.nextSibling;
+  }
+  return nil;
 }
 
 @end
@@ -331,28 +333,28 @@
 
 @implementation TTStyledLinkNode
 
-@synthesize url = _url, highlighted = _highlighted;
+@synthesize URL = _URL, highlighted = _highlighted;
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
 // NSObject
 
-- (id)initWithURL:(NSString*)url {
+- (id)initWithURL:(NSString*)URL {
   if (self = [self init]) {
-    self.url = url;
+    self.URL = URL;
   }
   return self;
 }
 
-- (id)initWithURL:(NSString*)url next:(TTStyledNode*)nextSibling {
+- (id)initWithURL:(NSString*)URL next:(TTStyledNode*)nextSibling {
   if (self = [super initWithNextSibling:nextSibling]) {
-    self.url = url;
+    self.URL = URL;
   }
   return self;
 }
 
-- (id)initWithText:(NSString*)text url:(NSString*)url next:(TTStyledNode*)nextSibling {
+- (id)initWithText:(NSString*)text URL:(NSString*)URL next:(TTStyledNode*)nextSibling {
   if (self = [super initWithNextSibling:nextSibling]) {
-    self.url = url;
+    self.URL = URL;
     [self addChild:[[[TTStyledTextNode alloc] initWithText:text] autorelease]];
   }
   return self;
@@ -360,14 +362,14 @@
 
 - (id)init {
   if (self = [super init]) {
-    _url = nil;
+    _URL = nil;
     _highlighted = NO;
   }
   return self;
 }
 
 - (void)dealloc {
-  [_url release];
+  TT_RELEASE_SAFELY(_URL);
   [super dealloc];
 }
 
@@ -378,9 +380,9 @@
 //////////////////////////////////////////////////////////////////////////////////////////////////
 // TTStyledElement
 
-- (void) performDefaultAction {
-  if (_url) {
-    [[TTNavigationCenter defaultCenter] displayURL:_url];
+- (void)performDefaultAction {
+  if (_URL) {
+    TTOpenURL(_URL);
   }
 }
 
@@ -390,28 +392,28 @@
 
 @implementation TTStyledButtonNode
 
-@synthesize url = _url, highlighted = _highlighted;
+@synthesize URL = _URL, highlighted = _highlighted;
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
 // NSObject
 
-- (id)initWithURL:(NSString*)url {
+- (id)initWithURL:(NSString*)URL {
   if (self = [self init]) {
-    self.url = url;
+    self.URL = URL;
   }
   return self;
 }
 
-- (id)initWithURL:(NSString*)url next:(TTStyledNode*)nextSibling {
+- (id)initWithURL:(NSString*)URL next:(TTStyledNode*)nextSibling {
   if (self = [super initWithNextSibling:nextSibling]) {
-    self.url = url;
+    self.URL = URL;
   }
   return self;
 }
 
-- (id)initWithText:(NSString*)text url:(NSString*)url next:(TTStyledNode*)nextSibling {
+- (id)initWithText:(NSString*)text URL:(NSString*)URL next:(TTStyledNode*)nextSibling {
   if (self = [super initWithNextSibling:nextSibling]) {
-    self.url = url;
+    self.URL = URL;
     [self addChild:[[[TTStyledTextNode alloc] initWithText:text] autorelease]];
   }
   return self;
@@ -419,14 +421,14 @@
 
 - (id)init {
   if (self = [super init]) {
-    _url = nil;
+    _URL = nil;
     _highlighted = NO;
   }
   return self;
 }
 
 - (void)dealloc {
-  [_url release];
+  TT_RELEASE_SAFELY(_URL);
   [super dealloc];
 }
 
@@ -437,9 +439,78 @@
 //////////////////////////////////////////////////////////////////////////////////////////////////
 // TTStyledElement
 
-- (void) performDefaultAction {
-  if (_url) {
-    [[TTNavigationCenter defaultCenter] displayURL:_url];
+- (void)performDefaultAction {
+  if (_URL) {
+    TTOpenURL(_URL);
+  }
+}
+
+@end
+
+//////////////////////////////////////////////////////////////////////////////////////////////////
+
+@implementation TTStyledImageNode
+
+@synthesize URL = _URL, image = _image, defaultImage = _defaultImage, width = _width,
+            height = _height;
+
+//////////////////////////////////////////////////////////////////////////////////////////////////
+// NSObject
+
+- (id)initWithURL:(NSString*)URL {
+  if (self = [super init]) {
+    self.URL = URL;
+  }
+  return self;
+}
+
+- (id)init {
+  if (self = [super init]) {
+    _URL = nil;
+    _image = nil;
+    _defaultImage = nil;
+    _width = 0;
+    _height = 0;
+  }
+  return self;
+}
+
+- (void)dealloc {
+  TT_RELEASE_SAFELY(_URL);
+  TT_RELEASE_SAFELY(_image);
+  TT_RELEASE_SAFELY(_defaultImage);
+  [super dealloc];
+}
+
+- (NSString*)description {
+  return [NSString stringWithFormat:@"(%@)", _URL];
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////
+// TTStyledNode
+
+- (NSString*)outerHTML {
+  NSString* html = [NSString stringWithFormat:@"<img src=\"%@\"/>", _URL];
+  if (_nextSibling) {
+    return [NSString stringWithFormat:@"%@%@", html, _nextSibling.outerHTML];
+  } else {
+    return html;
+  }
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////
+// public
+
+- (void)setURL:(NSString*)URL {
+  if (!_URL || ![URL isEqualToString:_URL]) {
+    [_URL release];
+    _URL = [URL retain];
+
+    if (_URL) {
+      self.image = [[TTURLCache sharedCache] imageForURL:_URL];
+    } else {
+      self.image = nil;
+    }
   }
 }
 

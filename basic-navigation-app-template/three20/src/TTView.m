@@ -21,8 +21,8 @@
 }
 
 - (void)dealloc {
-  [_style release];
-  [_layout release];
+  TT_RELEASE_SAFELY(_style);
+  TT_RELEASE_SAFELY(_layout);
   [super dealloc];
 }
 
@@ -62,6 +62,15 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // public
+
+- (void)setStyle:(TTStyle*)style {
+  if (style != _style) {
+    [_style release];
+    _style = [style retain];
+    
+    [self setNeedsDisplay];
+  }  
+}
 
 - (void)drawContent:(CGRect)rect {
 }

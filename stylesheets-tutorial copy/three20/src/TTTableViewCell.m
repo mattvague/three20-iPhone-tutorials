@@ -1,0 +1,40 @@
+#import "Three20/TTTableViewCell.h"
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+@implementation TTTableViewCell
+
++ (CGFloat)tableView:(UITableView*)tableView rowHeightForItem:(id)item {
+  return TOOLBAR_HEIGHT;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+- (id)initWithFrame:(CGRect)frame reuseIdentifier:(NSString*)identifier {
+  if (self = [super initWithFrame:frame reuseIdentifier:identifier]) {
+  }
+  return self;
+}
+
+- (void)dealloc {
+  [super dealloc];
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// UITableViewCell
+
+- (void)prepareForReuse {
+  self.object = nil;
+  [super prepareForReuse];
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+- (id)object {
+  return nil;
+}
+
+- (void)setObject:(id)object {
+}
+
+@end

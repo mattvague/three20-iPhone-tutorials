@@ -11,7 +11,7 @@
 // NSObject
 
 - (id)initWithText:(NSString*)text {
-  if (self = [self initWithFrame:CGRectZero]) {
+  if (self = [self init]) {
     self.text = text;
   }
   return self;
@@ -26,8 +26,8 @@
 }
 
 - (void)dealloc {
-  [_text release];
-  [_font release];
+  TT_RELEASE_SAFELY(_text);
+  TT_RELEASE_SAFELY(_font);
   [super dealloc];
 }
 
@@ -51,7 +51,7 @@
   TTStyleContext* context = [[[TTStyleContext alloc] init] autorelease];
   context.delegate = self;
   context.font = _font;
-  context.frame = self.bounds;
+  context.frame = CGRectMake(0, 0, size.width, size.height);
   context.contentFrame = context.frame;
   return [_style addToSize:CGSizeZero context:context];
 }

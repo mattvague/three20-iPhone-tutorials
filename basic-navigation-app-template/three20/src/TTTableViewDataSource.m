@@ -1,27 +1,50 @@
 #import "Three20/TTTableViewDataSource.h"
-#import "Three20/TTTableField.h"
-#import "Three20/TTTableFieldCell.h"
+#import "Three20/TTTableItem.h"
+#import "Three20/TTTableItemCell.h"
 #import "Three20/TTURLCache.h"
+#import "Three20/TTTextEditor.h"
+#import "Three20/TTStyledText.h"
 #import <objc/runtime.h>
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-@implementation TTDataSource
+@implementation TTTableViewDataSource
 
-@synthesize delegates = _delegates;
+@synthesize model = _model;
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// class public
+
++ (NSArray*)lettersForSectionsWithSearch:(BOOL)search summary:(BOOL)summary {
+  NSMutableArray* titles = [NSMutableArray array];
+  if (search) {
+    [titles addObject:UITableViewIndexSearch];
+  }
+  
+  for (unichar c = 'A'; c <= 'Z'; ++c) {
+    NSString* letter = [NSString stringWithFormat:@"%c", c];
+    [titles addObject:letter];
+  }
+  
+  if (summary) {
+    [titles addObject:@"#"];
+  }
+  
+  return titles;
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // NSObject
 
 - (id)init {
   if (self = [super init]) {
-    _delegates = nil;
+    _model = nil;
   }
   return self;
 }
 
 - (void)dealloc {
-  [_delegates release];
+  TT_RELEASE_SAFELY(_model);
   [super dealloc];
 }
 
@@ -44,7 +67,8 @@
 
   UITableViewCell* cell = (UITableViewCell*)[tableView dequeueReusableCellWithIdentifier:identifier];
   if (cell == nil) {
-    cell = [[[cellClass alloc] initWithFrame:CGRectZero reuseIdentifier:identifier] autorelease];
+    cell = [[[cellClass alloc] initWithStyle:UITableViewCellStyleDefault
+                               reuseIdentifier:identifier] autorelease];
   }
   [identifier release];
   
@@ -52,23 +76,51 @@
     [(TTTableViewCell*)cell setObject:object];
   }
   
-  [self tableView:tableView prepareCell:cell forRowAtIndexPath:indexPath];
+  [self tableView:tableView cell:cell willAppearAtIndexPath:indexPath];
       
   return cell;
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// TTLoadable
-
-- (NSMutableArray*)delegates {
-  if (!_delegates) {
-    _delegates = TTCreateNonRetainingArray();
-  }
-  return _delegates;
+- (NSArray*)sectionIndexTitlesForTableView:(UITableView*)tableView {
+  return nil;
 }
 
-- (NSDate*)loadedTime {
+- (NSInteger)tableView:(UITableView*)tableView sectionForSectionIndexTitle:(NSString*)title 
+            atIndex:(NSInteger)index {
+  if (tableView.tableHeaderView) {
+    if (index == 0)  {
+      // This is a hack to get the table header to appear when the user touches the
+      // first row in the section index.  By default, it shows the first row, which is
+      // not usually what you want.
+      [tableView scrollRectToVisible:tableView.tableHeaderView.bounds animated:NO];
+      return -1;
+    }
+  }
+
+  NSString* letter = [title substringToIndex:1];
+  NSInteger sectionCount = [tableView numberOfSections];
+  for (NSInteger i = 0; i < sectionCount; ++i) {
+    NSString* section  = [tableView.dataSource tableView:tableView titleForHeaderInSection:i];
+    if ([section hasPrefix:letter]) {
+      return i;
+    }
+  }
+  if (index >= sectionCount) {
+    return sectionCount-1;
+  } else {
+    return index;
+  }
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// TTModel
+
+- (NSMutableArray*)delegates {
   return nil;
+}
+
+- (BOOL)isLoaded {
+  return YES;
 }
 
 - (BOOL)isLoading {
@@ -79,65 +131,63 @@
   return NO;
 }
 
-- (BOOL)isLoaded {
-  return YES;
-}
-
 - (BOOL)isOutdated {
-  NSDate* loadedTime = self.loadedTime;
-  if (loadedTime) {
-    return -[loadedTime timeIntervalSinceNow] > [TTURLCache sharedCache].invalidationAge;
-  } else {
-    return NO;
-  }
+  return NO;
 }
 
-- (BOOL)isEmpty {
-  return YES;
-}
-
-- (void)invalidate:(BOOL)erase {
+- (void)load:(TTURLRequestCachePolicy)cachePolicy more:(BOOL)more {
 }
 
 - (void)cancel {
 }
 
+- (void)invalidate:(BOOL)erase {
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// TTLoadable
+// TTTableViewDataSource
+
+- (id<TTModel>)model {
+  return _model ? _model : self;
+}
 
 - (id)tableView:(UITableView*)tableView objectForRowAtIndexPath:(NSIndexPath*)indexPath {
   return nil;
 }
 
 - (Class)tableView:(UITableView*)tableView cellClassForObject:(id)object {
-  if ([object isKindOfClass:[TTTableField class]]) {
-    if ([object isKindOfClass:[TTTextTableField class]]) {
-      return [TTTextTableFieldCell class];
-    } else if ([object isKindOfClass:[TTTitledTableField class]]) {
-      return [TTTitledTableFieldCell class];
-    } else if ([object isKindOfClass:[TTSubtextTableField class]]) {
-      return [TTSubtextTableFieldCell class];
-    } else if ([object isKindOfClass:[TTMoreButtonTableField class]]) {
-      return [TTMoreButtonTableFieldCell class];
-    } else if ([object isKindOfClass:[TTIconTableField class]]) {
-      return [TTIconTableFieldCell class];
-    } else if ([object isKindOfClass:[TTImageTableField class]]) {
-      return [TTImageTableFieldCell class];
-    } else if ([object isKindOfClass:[TTActivityTableField class]]) {
-      return [TTActivityTableFieldCell class];
-    } else if ([object isKindOfClass:[TTErrorTableField class]]) {
-      return [TTErrorTableFieldCell class];
-    } else if ([object isKindOfClass:[TTTextFieldTableField class]]) {
-      return [TTTextFieldTableFieldCell class];
-    } else if ([object isKindOfClass:[TTTextViewTableField class]]) {
-      return [TTTextViewTableFieldCell class];
-    } else if ([object isKindOfClass:[TTSwitchTableField class]]) {
-      return [TTSwitchTableFieldCell class];
-    } else if ([object isKindOfClass:[TTStyledTextTableField class]]) {
-      return [TTStyledTextTableFieldCell class];
+  if ([object isKindOfClass:[TTTableItem class]]) {
+    if ([object isKindOfClass:[TTTableMoreButton class]]) {
+      return [TTTableMoreButtonCell class];
+    } else if ([object isKindOfClass:[TTTableSubtextItem class]]) {
+      return [TTTableSubtextItemCell class];
+    } else if ([object isKindOfClass:[TTTableRightCaptionItem class]]) {
+      return [TTTableRightCaptionItemCell class];
+    } else if ([object isKindOfClass:[TTTableCaptionItem class]]) {
+      return [TTTableCaptionItemCell class];
+    } else if ([object isKindOfClass:[TTTableSubtitleItem class]]) {
+      return [TTTableSubtitleItemCell class];
+    } else if ([object isKindOfClass:[TTTableMessageItem class]]) {
+      return [TTTableMessageItemCell class];
+    } else if ([object isKindOfClass:[TTTableImageItem class]]) {
+      return [TTTableImageItemCell class];
+    } else if ([object isKindOfClass:[TTTableStyledTextItem class]]) {
+      return [TTStyledTextTableItemCell class];
+    } else if ([object isKindOfClass:[TTTableActivityItem class]]) {
+      return [TTTableActivityItemCell class];
+    } else if ([object isKindOfClass:[TTTableControlItem class]]) {
+      return [TTTableControlCell class];
     } else {
-      return [TTTextTableFieldCell class];
+      return [TTTableTextItemCell class];
     }
+  } else if ([object isKindOfClass:[TTStyledText class]]) {
+    return [TTStyledTextTableCell class];
+  } else if ([object isKindOfClass:[UIControl class]]
+             || [object isKindOfClass:[UITextView class]]
+             || [object isKindOfClass:[TTTextEditor class]]) {
+    return [TTTableControlCell class];
+  } else if ([object isKindOfClass:[UIView class]]) {
+    return [TTTableFlushViewCell class];
   }
   
   // This will display an empty white table cell - probably not what you want, but it
@@ -146,305 +196,103 @@
 }
 
 - (NSString*)tableView:(UITableView*)tableView labelForObject:(id)object {
-  return [NSString stringWithFormat:@"%@", object];
+  if ([object isKindOfClass:[TTTableTextItem class]]) {
+    TTTableTextItem* item = object;
+    return item.text;
+  } else {
+    return [NSString stringWithFormat:@"%@", object];
+  }
 }
 
 - (NSIndexPath*)tableView:(UITableView*)tableView indexPathForObject:(id)object {
   return nil;
 }
 
-- (void)tableView:(UITableView*)tableView prepareCell:(UITableViewCell*)cell
-        forRowAtIndexPath:(NSIndexPath*)indexPath {
+- (void)tableView:(UITableView*)tableView cell:(UITableViewCell*)cell
+        willAppearAtIndexPath:(NSIndexPath*)indexPath {
 }
 
-- (void)tableView:(UITableView*)tableView search:(NSString*)text {
+- (void)tableViewDidLoadModel:(UITableView*)tableView {
 }
 
-- (void)load:(TTURLRequestCachePolicy)cachePolicy nextPage:(BOOL)nextPage {
+- (void)search:(NSString*)text {
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// public
-
-- (void)dataSourceDidStartLoad {
-  for (id<TTTableViewDataSourceDelegate> delegate in self.delegates) {
-    if ([delegate respondsToSelector:@selector(dataSourceDidStartLoad:)]) {
-      [delegate dataSourceDidStartLoad:self];
-    }
+- (NSString*)titleForLoading:(BOOL)reloading {
+  if (reloading) {
+    return TTLocalizedString(@"Updating...", @"");
+  } else {
+    return TTLocalizedString(@"Loading...", @"");
   }
 }
 
-- (void)dataSourceDidFinishLoad {
-  for (id<TTTableViewDataSourceDelegate> delegate in self.delegates) {
-    if ([delegate respondsToSelector:@selector(dataSourceDidFinishLoad:)]) {
-      [delegate dataSourceDidFinishLoad:self];
-    }
-  }
+- (UIImage*)imageForEmpty {
+  return [self imageForError:nil];
 }
 
-- (void)dataSourceDidFailLoadWithError:(NSError*)error {
-  for (id<TTTableViewDataSourceDelegate> delegate in self.delegates) {
-    if ([delegate respondsToSelector:@selector(dataSource:didFailLoadWithError:)]) {
-      [delegate dataSource:self didFailLoadWithError:error];
-    }
-  }
+- (NSString*)titleForEmpty {
+  return nil;
 }
 
-- (void)dataSourceDidCancelLoad {
-  for (id<TTTableViewDataSourceDelegate> delegate in self.delegates) {
-    if ([delegate respondsToSelector:@selector(dataSourceDidCancelLoad:)]) {
-      [delegate dataSourceDidCancelLoad:self];
-    }
-  }
+- (NSString*)subtitleForEmpty {
+  return nil;
+}
+
+- (UIImage*)imageForError:(NSError*)error {
+  return nil;
+}
+
+- (NSString*)titleForError:(NSError*)error {
+  return TTDescriptionForError(error);
+}
+
+- (NSString*)subtitleForError:(NSError*)error {
+  return TTLocalizedString(@"Sorry, there was an error.", @"");
 }
 
 @end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-@implementation TTListDataSource
-
-@synthesize items = _items;
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// class public
-
-+ (TTListDataSource*)dataSourceWithObjects:(id)object,... {
-  NSMutableArray* items = [NSMutableArray array];
-  va_list ap;
-  va_start(ap, object);
-  while (object) {
-    [items addObject:object];
-    object = va_arg(ap, id);
-  }
-  va_end(ap); 
-
-  return [[[self alloc] initWithItems:items] autorelease];
-}
-
-+ (TTListDataSource*)dataSourceWithItems:(NSMutableArray*)items {
-  return [[[self alloc] initWithItems:items] autorelease];
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// NSObject
-
-- (id)initWithItems:(NSArray*)items {
-  if (self = [self init]) {
-    _items = [items mutableCopy];
-  }
-  return self;
-}
-
-- (id)init {
-  if (self = [super init]) {
-    _items = nil;
-  }
-  return self;
-}
-
-- (void)dealloc {
-  [_items release];
-  [super dealloc];
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// UITableViewDataSource
-
-- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
-  return _items.count;
-}
+@implementation TTTableViewInterstialDataSource
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // TTTableViewDataSource
 
-- (BOOL)isEmpty {
-  return !_items.count;
-}
-
-- (id)tableView:(UITableView*)tableView objectForRowAtIndexPath:(NSIndexPath*)indexPath {
-  return [_items objectAtIndex:indexPath.row];
-}
-
-- (NSIndexPath*)tableView:(UITableView*)tableView indexPathForObject:(id)object {
-  NSUInteger index = [_items indexOfObject:object];
-  if (index != NSNotFound) {
-    return [NSIndexPath indexPathForRow:index inSection:0];
-  }
-  return nil;
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// public
-
-- (NSMutableArray*)items {
-  if (!_items) {
-    _items = [[NSMutableArray alloc] init];
-  }
-  return _items;
-}
-
-@end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-@implementation TTSectionedDataSource
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// class public
-
-+ (TTSectionedDataSource*)dataSourceWithObjects:(id)object,... {
-  NSMutableArray* items = [NSMutableArray array];
-  NSMutableArray* sections = [NSMutableArray array];
-  NSMutableArray* section = nil;
-  va_list ap;
-  va_start(ap, object);
-  while (object) {
-    if ([object isKindOfClass:[NSString class]]) {
-      [sections addObject:object];
-      section = [NSMutableArray array];
-      [items addObject:section];
-    } else {
-      [section addObject:object];
-    }
-    object = va_arg(ap, id);
-  }
-  va_end(ap);
-
-  return [[[self alloc] initWithItems:items sections:sections] autorelease];
-}
-
-+ (TTSectionedDataSource*)dataSourceWithArrays:(id)object,... {
-  NSMutableArray* items = [NSMutableArray array];
-  NSMutableArray* sections = [NSMutableArray array];
-  va_list ap;
-  va_start(ap, object);
-  while (object) {
-    if ([object isKindOfClass:[NSString class]]) {
-      [sections addObject:object];
-    } else {
-      [items addObject:object];
-    }
-    object = va_arg(ap, id);
-  }
-  va_end(ap);
-
-  return [[[self alloc] initWithItems:items sections:sections] autorelease];
-}
-
-+ (TTSectionedDataSource*)dataSourceWithItems:(NSArray*)items sections:(NSArray*)sections {
-  return [[[self alloc] initWithItems:items sections:sections] autorelease];
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// NSObject
-
-- (id)initWithItems:(NSArray*)items sections:(NSArray*)sections {
-  if (self = [self init]) {
-    _items = [items mutableCopy];
-    _sections = [sections mutableCopy];
-  }
+- (id<TTModel>)model {
   return self;
 }
 
-- (id)init {
-  if (self = [super init]) {
-    _items = nil;
-    _sections = nil;
-  }
-  return self;
-}
-
-- (void)dealloc {
-  [_items release];
-  [_sections release];
-  [super dealloc];
-}
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// UITableViewDataSource
+// TTModel
 
-- (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView {
-	return _sections.count ? _sections.count : 1;
-}
-
-- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
-  if (_sections) {
-    NSArray* items = [_items objectAtIndex:section];
-    return items.count;
-  } else {
-    return _items.count;
-  }
-}
-
-- (NSString *)tableView:(UITableView *)tableView titleForHeaderInSection:(NSInteger)section {
-  if (_sections.count) {
-    return [_sections objectAtIndex:section];
-  } else {
-    return nil;
-  }
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// TTTableViewDataSource
-
-- (BOOL)isEmpty {
-  return !_items.count;
-}
-
-- (id)tableView:(UITableView*)tableView objectForRowAtIndexPath:(NSIndexPath*)indexPath {
-  if (_sections) {
-    NSArray* section = [_items objectAtIndex:indexPath.section];
-    return [section objectAtIndex:indexPath.row];
-  } else {
-    return [_items objectAtIndex:indexPath.row];
-  }
-}
-
-- (NSIndexPath*)tableView:(UITableView*)tableView indexPathForObject:(id)object {
-  if (_sections) {
-    for (int i = 0; i < _items.count; ++i) {
-      NSMutableArray* section = [_items objectAtIndex:i];
-      NSUInteger index = [section indexOfObject:object];
-      if (index != NSNotFound) {
-        return [NSIndexPath indexPathForRow:index inSection:i];
-      }
-    }
-  } else {
-    NSUInteger index = [_items indexOfObject:object];
-    if (index != NSNotFound) {
-      return [NSIndexPath indexPathForRow:index inSection:0];
-    }
-  }
-
+- (NSMutableArray*)delegates {
   return nil;
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// public
+- (BOOL)isLoaded {
+  return NO;
+}
 
-- (NSArray*)lettersForSectionsWithSearch:(BOOL)withSearch withCount:(BOOL)withCount {
-  if (_sections) {
-    NSMutableArray* titles = [NSMutableArray array];
-    if (withSearch) {
-      [titles addObject:@"{search}"];
-    }
-    
-    for (NSString* label in _sections) {
-      if (label.length) {
-        NSString* letter = [label substringToIndex:1];
-        [titles addObject:letter];    
-      }
-    }
-    
-    if (withCount) {
-      [titles addObject:@"#"];
-    }
-    
-    return titles;
-  } else {
-    return nil;
-  }
+- (BOOL)isLoading {
+  return YES;
+}
+
+- (BOOL)isLoadingMore {
+  return NO;
+}
+
+- (BOOL)isOutdated {
+  return NO;
+}
+
+- (void)load:(TTURLRequestCachePolicy)cachePolicy more:(BOOL)more {
+}
+
+- (void)cancel {
+}
+
+- (void)invalidate:(BOOL)erase {
 }
 
 @end

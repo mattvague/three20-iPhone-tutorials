@@ -1,33 +1,28 @@
 #import "Three20/TTPhotoView.h"
 #import "Three20/TTDefaultStyleSheet.h"
 #import "Three20/TTImageView.h"
+#import "Three20/TTLabel.h"
 #import "Three20/TTActivityLabel.h"
 #import "Three20/TTURLCache.h"
-
-//////////////////////////////////////////////////////////////////////////////////////////////////
-
-static const CGFloat kPadding = 20;
-static const CGFloat kMarginBottom = 15;
-  
-static const CGFloat kCaptionWidth = 230;
-static const CGFloat kMaxCaptionHeight = 100;
+#import "Three20/TTURLRequestQueue.h"
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
 
 @implementation TTPhotoView
 
-@synthesize photo = _photo, extrasHidden = _extrasHidden, captionHidden = _captionHidden;
+@synthesize photo = _photo, captionStyle = _captionStyle, hidesExtras = _hidesExtras,
+            hidesCaption = _hidesCaption;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // private
 
 - (BOOL)loadVersion:(TTPhotoVersion)version fromNetwork:(BOOL)fromNetwork {
-  NSString* url = [_photo urlForVersion:version];
-  if (url) {
-    UIImage* image = [[TTURLCache sharedCache] imageForURL:url];
+  NSString* URL = [_photo URLForVersion:version];
+  if (URL) {
+    UIImage* image = [[TTURLCache sharedCache] imageForURL:URL];
     if (image || fromNetwork) {
       _photoVersion = version;
-      self.url = url;
+      self.URL = URL;
       return YES;
     }
   }
@@ -37,21 +32,16 @@ static const CGFloat kMaxCaptionHeight = 100;
 - (void)showCaption:(NSString*)caption {
   if (caption) {
     if (!_captionLabel) {
-      _captionLabel = [[UILabel alloc] initWithFrame:CGRectZero];
+      _captionLabel = [[TTLabel alloc] init];
       _captionLabel.opaque = NO;
-      _captionLabel.textColor = TTSTYLEVAR(photoCaptionTextColor);
-      _captionLabel.font = TTSTYLEVAR(photoCaptionFont);
-      _captionLabel.shadowColor = [UIColor colorWithWhite:0 alpha:0.9];
-      _captionLabel.shadowOffset = CGSizeMake(1, 1);
-      _captionLabel.backgroundColor = [UIColor clearColor];
-      _captionLabel.lineBreakMode = UILineBreakModeWordWrap;
-      _captionLabel.textAlignment = UITextAlignmentCenter;
-      _captionLabel.numberOfLines = 6;
+      _captionLabel.style = _captionStyle ? _captionStyle : TTSTYLE(photoCaption);
+      _captionLabel.alpha = _hidesCaption ? 0 : 1;
       [self addSubview:_captionLabel];
     }
   }
 
   _captionLabel.text = caption;
+  [self setNeedsLayout];
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -62,10 +52,11 @@ static const CGFloat kMaxCaptionHeight = 100;
     _photo = nil;
     _statusSpinner = nil;
     _statusLabel = nil;
+    _captionStyle = nil;
     _captionLabel = nil;
     _photoVersion = TTPhotoVersionNone;
-    _extrasHidden = NO;
-    _captionHidden = NO;
+    _hidesExtras = NO;
+    _hidesCaption = NO;
     
     self.clipsToBounds = NO;
   }
@@ -73,11 +64,13 @@ static const CGFloat kMaxCaptionHeight = 100;
 }
 
 - (void)dealloc {
+  [[TTURLRequestQueue mainQueue] cancelRequestsWithDelegate:self];
   [super setDelegate:nil];
-  [_photo release];
-  [_statusSpinner release];
-  [_statusLabel release];
-  [_captionLabel release];
+  TT_RELEASE_SAFELY(_photo);
+  TT_RELEASE_SAFELY(_captionLabel);
+  TT_RELEASE_SAFELY(_captionStyle);
+  TT_RELEASE_SAFELY(_statusSpinner);
+  TT_RELEASE_SAFELY(_statusLabel);
   [super dealloc];
 }
 
@@ -85,7 +78,7 @@ static const CGFloat kMaxCaptionHeight = 100;
 // UIImageView
 
 - (void)setImage:(UIImage*)image {
-  if (image != _defaultImage || !_photo || self.url != [_photo urlForVersion:TTPhotoVersionLarge]) {
+  if (image != _defaultImage || !_photo || self.URL != [_photo URLForVersion:TTPhotoVersionLarge]) {
     if (image == _defaultImage) {
       self.contentMode = UIViewContentModeCenter;
     } else {
@@ -112,10 +105,9 @@ static const CGFloat kMaxCaptionHeight = 100;
 }
 
 - (void)imageViewDidFailLoadWithError:(NSError*)error {
-  if (self.url == [_photo urlForVersion:TTPhotoVersionLarge]) {
-    [self showStatus:TTLocalizedString(@"This photo is not available.", @"")];
-  } else {
-    [self showProgress:0];
+  [self showProgress:0];
+  if (error) {
+    [self showStatus:TTDescriptionForError(error)];
   }
 }
 
@@ -124,12 +116,15 @@ static const CGFloat kMaxCaptionHeight = 100;
 
 - (void)layoutSubviews {
   CGRect screenBounds = TTScreenBounds();
+  CGFloat width = self.orientationWidth;
   CGFloat height = self.orientationHeight;
-  CGFloat cx = self.bounds.origin.x + self.orientationWidth/2;
-  CGFloat cy = self.bounds.origin.y + self.orientationHeight/2;
+  CGFloat cx = self.bounds.origin.x + width/2;
+  CGFloat cy = self.bounds.origin.y + height/2;
 
-  BOOL landscape = self.width == self.orientationWidth;
-  CGFloat marginBottom = landscape ? TOOLBAR_HEIGHT : 0;
+  BOOL portrait = self.width == width;
+  CGFloat marginRight = portrait ? 0 : TTBarsHeight();
+  CGFloat marginLeft = portrait ? 0 : TT_ROW_HEIGHT;
+  CGFloat marginBottom = portrait ? TT_ROW_HEIGHT : 0;
   
   // Since the photo view is constrained to the size of the image, but we want to position
   // the status views relative to the screen, offset by the difference
@@ -137,26 +132,36 @@ static const CGFloat kMaxCaptionHeight = 100;
   
   // Vertically center in the space between the bottom of the image and the bottom of the screen
   CGFloat imageBottom = screenBounds.size.height/2 + self.defaultImage.size.height/2;
-  CGFloat offsetBottom = imageBottom + (screenBounds.size.height - (imageBottom + marginBottom))/2;
+  CGFloat textWidth = screenBounds.size.width - (marginLeft+marginRight);
   
-  _statusLabel.frame = CGRectMake(0, 0, self.width - kPadding, 0);
-  [_statusLabel sizeToFit];
-  _statusLabel.center = CGPointMake(self.bounds.origin.x + self.bounds.size.width/2,
-    screenOffset + self.bounds.origin.y + offsetBottom);
+  if (_statusLabel.text.length) {
+    CGSize statusSize = [_statusLabel sizeThatFits:CGSizeMake(textWidth, 0)];
+    _statusLabel.frame = 
+        CGRectMake(marginLeft + (cx - screenBounds.size.width/2), 
+                   cy + floor(screenBounds.size.height/2 - (statusSize.height+marginBottom)),
+                   textWidth, statusSize.height);
+  } else {
+    _statusLabel.frame = CGRectZero;
+  }
+  
+  if (_captionLabel.text.length) {
+    CGSize captionSize = [_captionLabel sizeThatFits:CGSizeMake(textWidth, 0)];
+    _captionLabel.frame = CGRectMake(marginLeft + (cx - screenBounds.size.width/2), 
+                                     cy + floor(screenBounds.size.height/2
+                                                - (captionSize.height+marginBottom)),
+                                     textWidth, captionSize.height);
+  } else {
+    _captionLabel.frame = CGRectZero;
+  }
+  
+  CGFloat spinnerTop = _captionLabel.height
+    ? _captionLabel.top - floor(_statusSpinner.height + _statusSpinner.height/2)
+    : screenOffset + imageBottom + floor(_statusSpinner.height/2);
 
-  [_statusSpinner sizeToFit];
-  _statusSpinner.center = CGPointMake(self.bounds.origin.x + self.bounds.size.width/2,
-    screenOffset + self.bounds.origin.y + offsetBottom);
+  _statusSpinner.frame =
+    CGRectMake(self.bounds.origin.x + floor(self.bounds.size.width/2 - _statusSpinner.width/2),
+               spinnerTop, _statusSpinner.width, _statusSpinner.height);
 
-  CGSize captionSize = [_captionLabel.text sizeWithFont:_captionLabel.font
-    constrainedToSize:CGSizeMake(kCaptionWidth, CGFLOAT_MAX)];
-  CGFloat captionHeight = captionSize.height > kMaxCaptionHeight
-    ? kMaxCaptionHeight : captionSize.height;
-
-  _captionLabel.frame = CGRectMake(
-    floor(cx - captionSize.width/2),
-    floor(cy + screenBounds.size.height/2 - (captionHeight+kMarginBottom+marginBottom)),
-    captionSize.width, captionHeight);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
@@ -168,7 +173,7 @@ static const CGFloat kMaxCaptionHeight = 100;
     _photo = [photo retain];
     _photoVersion = TTPhotoVersionNone;
     
-    self.url = nil;
+    self.URL = nil;
     
     [self showCaption:photo.caption];
   }
@@ -180,16 +185,16 @@ static const CGFloat kMaxCaptionHeight = 100;
   }
 }
 
-- (void)setExtrasHidden:(BOOL)extrasHidden {
-  _extrasHidden = extrasHidden;
-   _statusSpinner.alpha = _extrasHidden ? 0 : 1;
-   _statusLabel.alpha = _extrasHidden ? 0 : 1;
-   _captionLabel.alpha = _extrasHidden || _captionHidden ? 0 : 1;
+- (void)setHidesExtras:(BOOL)hidesExtras {
+  _hidesExtras = hidesExtras;
+   _statusSpinner.alpha = _hidesExtras ? 0 : 1;
+   _statusLabel.alpha = _hidesExtras ? 0 : 1;
+   _captionLabel.alpha = _hidesExtras || _hidesCaption ? 0 : 1;
 }
 
-- (void)setCaptionHidden:(BOOL)captionHidden {
-  _captionHidden = captionHidden;
-  _captionLabel.alpha = captionHidden ? 0 : 1;
+- (void)setHidesCaption:(BOOL)hidesCaption {
+  _hidesCaption = hidesCaption;
+  _captionLabel.alpha = hidesCaption ? 0 : 1;
 }
 
 - (BOOL)loadPreview:(BOOL)fromNetwork {
@@ -207,7 +212,7 @@ static const CGFloat kMaxCaptionHeight = 100;
 - (void)loadImage {
   if (_photo) {
     _photoVersion = TTPhotoVersionLarge;
-    self.url = [_photo urlForVersion:TTPhotoVersionLarge];
+    self.URL = [_photo URLForVersion:TTPhotoVersionLarge];
   }
 }
 
@@ -223,25 +228,19 @@ static const CGFloat kMaxCaptionHeight = 100;
     _statusSpinner.hidden = NO;
     [self showStatus:nil];
     [self setNeedsLayout];
-    _captionLabel.hidden = YES;
   } else {
     [_statusSpinner stopAnimating];
     _statusSpinner.hidden = YES;
-    _captionLabel.hidden = !!_statusLabel.text;
+    _captionLabel.hidden = !!_statusLabel.text.length;
   }
 }
 
 - (void)showStatus:(NSString*)text {
   if (text) {
     if (!_statusLabel) {
-      _statusLabel = [[UILabel alloc] initWithFrame:CGRectZero];
-      _statusLabel.font = TTSTYLEVAR(tableFont);
-      _statusLabel.textColor = TTSTYLEVAR(tableErrorTextColor);
-      _statusLabel.backgroundColor = [UIColor clearColor];
-      _statusLabel.shadowColor = [UIColor colorWithWhite:0 alpha:0.7];
-      _statusLabel.shadowOffset = CGSizeMake(1, 1);
-      _statusLabel.textAlignment = UITextAlignmentCenter;
-      _statusLabel.numberOfLines = 0;
+      _statusLabel = [[TTLabel alloc] init];
+      _statusLabel.style = TTSTYLE(photoStatusLabel);
+      _statusLabel.opaque = NO;
       [self addSubview:_statusLabel];
     }
     _statusLabel.hidden = NO;
@@ -250,7 +249,7 @@ static const CGFloat kMaxCaptionHeight = 100;
     _captionLabel.hidden = YES;
   } else {
     _statusLabel.hidden = YES;
-    _captionLabel.hidden = _statusSpinner.isAnimating;
+    _captionLabel.hidden = NO;
   }
 
   _statusLabel.text = text;

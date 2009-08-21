@@ -8,9 +8,24 @@
  */
 @property(nonatomic,readonly) UIView* indexView;
 
-- (void)touchRowAtIndexPath:(NSIndexPath*)indexPath animated:(BOOL)animated;
+/**
+ * Returns the margin used to inset table cells.
+ *
+ * Grouped tables have a margin but plain tables don't.  This is useful in table cell
+ * layout calculations where you don't want to hard-code the table style.
+ */
+@property(nonatomic,readonly) CGFloat tableCellMargin;
 
 - (void)scrollToTop:(BOOL)animated;
+
 - (void)scrollToBottom:(BOOL)animated;
+
+- (void)scrollToFirstRow:(BOOL)animated;
+
+- (void)scrollToLastRow:(BOOL)animated;
+
+- (void)scrollFirstResponderIntoView;
+
+- (void)touchRowAtIndexPath:(NSIndexPath*)indexPath animated:(BOOL)animated;
 
 @end

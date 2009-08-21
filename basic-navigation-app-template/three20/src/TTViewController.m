@@ -1,22 +1,23 @@
 #import "Three20/TTViewController.h"
-#import "Three20/TTErrorView.h"
+#import "Three20/TTTableViewController.h"
 #import "Three20/TTURLRequestQueue.h"
+#import "Three20/TTSearchDisplayController.h"
 #import "Three20/TTStyleSheet.h"
+#import "Three20/TTNavigator.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 @implementation TTViewController
 
-@synthesize frozenState = _frozenState, viewState = _viewState,
-  contentError = _contentError, navigationBarStyle = _navigationBarStyle,
+@synthesize navigationBarStyle = _navigationBarStyle,
   navigationBarTintColor = _navigationBarTintColor, statusBarStyle = _statusBarStyle,
-  appearing = _appearing, appeared = _appeared,
+  isViewAppearing = _isViewAppearing, hasViewAppeared = _hasViewAppeared,
   autoresizesForKeyboard = _autoresizesForKeyboard;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // private
 
-- (BOOL)resizeForKeyboard:(NSNotification*)notification {
+- (void)resizeForKeyboard:(NSNotification*)notification appearing:(BOOL)appearing {
   NSValue* v1 = [notification.userInfo objectForKey:UIKeyboardBoundsUserInfoKey];
   CGRect keyboardBounds;
   [v1 getValue:&keyboardBounds];
@@ -28,47 +29,63 @@
   NSValue* v3 = [notification.userInfo objectForKey:UIKeyboardCenterEndUserInfoKey];
   CGPoint keyboardEnd;
   [v3 getValue:&keyboardEnd];
-  
-  CGFloat keyboardTop = keyboardEnd.y - floor(keyboardBounds.size.height/2);
-  CGFloat screenBottom = self.view.screenY + self.view.height;
-  if (screenBottom != keyboardTop) {
-    BOOL animated = keyboardStart.y != keyboardEnd.y;
-    if (animated) {
-      [UIView beginAnimations:nil context:nil];
-      [UIView setAnimationDuration:TT_TRANSITION_DURATION];
-    }
-    
-    CGFloat dy = screenBottom - keyboardTop;
-    self.view.frame = TTRectContract(self.view.frame, 0, dy);
 
-    if (animated) {
-      [UIView commitAnimations];
-    }
-    
-    return animated;
+  BOOL animated = keyboardStart.y != keyboardEnd.y;
+  if (animated) {
+    [UIView beginAnimations:nil context:nil];
+    [UIView setAnimationDuration:TT_TRANSITION_DURATION];
   }
   
-  return NO;
+  if (appearing) {
+    [self keyboardWillAppear:animated withBounds:keyboardBounds];
+    
+    [self retain];
+    [NSTimer scheduledTimerWithTimeInterval:TT_TRANSITION_DURATION
+             target:self selector:@selector(keyboardDidAppearDelayed:)
+             userInfo:[NSValue valueWithCGRect:keyboardBounds] repeats:NO];
+  } else {
+    [self keyboardWillDisappear:animated withBounds:keyboardBounds];
+
+    [self retain];
+    [NSTimer scheduledTimerWithTimeInterval:TT_TRANSITION_DURATION
+             target:self selector:@selector(keyboardDidDisappearDelayed:)
+             userInfo:[NSValue valueWithCGRect:keyboardBounds] repeats:NO];
+  }
+  
+  if (animated) {
+    [UIView commitAnimations];
+  }
+}
+
+- (void)keyboardDidAppearDelayed:(NSTimer*)timer {
+  NSValue* value = timer.userInfo;
+  CGRect keyboardBounds;
+  [value getValue:&keyboardBounds];
+
+  [self keyboardDidAppear:YES withBounds:keyboardBounds];
+  [self autorelease];
+}
+
+- (void)keyboardDidDisappearDelayed:(NSTimer*)timer {
+  NSValue* value = timer.userInfo;
+  CGRect keyboardBounds;
+  [value getValue:&keyboardBounds];
+
+  [self keyboardDidDisappear:YES withBounds:keyboardBounds];
+  [self autorelease];
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // NSObject
 
 - (id)init {
-  if (self = [super init]) {  
+  if (self = [super init]) {
     _frozenState = nil;
-    _viewState = TTViewEmpty;
-    _contentError = nil;
     _navigationBarStyle = UIBarStyleDefault;
     _navigationBarTintColor = nil;
     _statusBarStyle = UIStatusBarStyleDefault;
-    _invalidView = YES;
-    _invalidViewLoading = NO;
-    _invalidViewData = YES;
-    _validating = NO;
-    _appearing = NO;
-    _appeared = NO;
-    _unloaded = NO;
+    _hasViewAppeared = NO;
+    _isViewAppearing = NO;
     _autoresizesForKeyboard = NO;
     
     self.navigationBarTintColor = TTSTYLEVAR(navigationBarTintColor);
@@ -82,23 +99,30 @@
 
 - (void)dealloc {
   TTLOG(@"DEALLOC %@", self);
-  
-  self.autoresizesForKeyboard = NO;
-  
+
   [[TTURLRequestQueue mainQueue] cancelRequestsWithDelegate:self];
 
-  [_navigationBarTintColor release];
-  [_frozenState release];
-  [_contentError release];
-  [self unloadView];
+  TT_RELEASE_SAFELY(_navigationBarTintColor);
+  TT_RELEASE_SAFELY(_frozenState);
+  
+  // Removes keyboard notification observers for 
+  self.autoresizesForKeyboard = NO;
 
-  if (_appeared) {
-    // The controller is supposed to handle this but sometimes due to leaks it does not, so
-    // we have to force it here
-    [self.view removeSubviews];
-  }
-
+  // You would think UIViewController would call this in dealloc, but it doesn't!
+  // I would prefer not to have to redundantly put all view releases in dealloc and
+  // viewDidUnload, so my solution is just to call viewDidUnload here.
+  [self viewDidUnload];
+  
   [super dealloc];
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// UIResponder
+
+- (void)motionBegan:(UIEventSubtype)motion withEvent:(UIEvent *)event {
+  if (event.type == UIEventSubtypeMotionShake && [TTNavigator navigator].supportsShakeToReload) {
+    [[TTNavigator navigator] reload];
+  }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -106,99 +130,119 @@
 
 - (void)loadView {
   [super loadView];
-
-  self.view.frame = TTNavigationFrame();
+  
+  CGRect frame = self.wantsFullScreenLayout ? TTScreenBounds() : TTNavigationFrame(); 
+  self.view = [[[UIView alloc] initWithFrame:frame] autorelease];
 	self.view.autoresizesSubviews = YES;
-	self.view.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+	self.view.autoresizingMask = UIViewAutoresizingFlexibleWidth
+                              | UIViewAutoresizingFlexibleHeight;
   self.view.backgroundColor = TTSTYLEVAR(backgroundColor);
 }
 
+- (void)viewDidUnload {
+  [super viewDidUnload];
+  TT_RELEASE_SAFELY(_searchController);
+}
+
 - (void)viewWillAppear:(BOOL)animated {
-  if (_unloaded) {
-    _unloaded = NO;
-    [self loadView];
-  }
-
-  _appearing = YES;
-  _appeared = YES;
-
-  [self validateView];
+  [super viewWillAppear:animated];
+  _isViewAppearing = YES;
+  _hasViewAppeared = YES;
 
   [TTURLRequestQueue mainQueue].suspended = YES;
 
-  UINavigationBar* bar = self.navigationController.navigationBar;
-  bar.tintColor = _navigationBarTintColor;
-  bar.barStyle = _navigationBarStyle;
+  if (!self.popupViewController) {
+    UINavigationBar* bar = self.navigationController.navigationBar;
+    bar.tintColor = _navigationBarTintColor;
+    bar.barStyle = _navigationBarStyle;
+    [[UIApplication sharedApplication] setStatusBarStyle:_statusBarStyle animated:YES];
+  }
 
-  [[UIApplication sharedApplication] setStatusBarStyle:_statusBarStyle animated:YES];
+  // Ugly hack to work around UISearchBar's inability to resize its text field
+  // to avoid being overlapped by the table section index
+//  if (_searchController && !_searchController.active) {
+//    [_searchController setActive:YES animated:NO];
+//    [_searchController setActive:NO animated:NO];
+//  }
 }
 
 - (void)viewDidAppear:(BOOL)animated {
+  [super viewDidAppear:animated];
   [TTURLRequestQueue mainQueue].suspended = NO;
 }
 
 - (void)viewWillDisappear:(BOOL)animated {
-  _appearing = NO;
+  [super viewWillDisappear:animated];
+  _isViewAppearing = NO;
 }
 
 - (void)didReceiveMemoryWarning {
   TTLOG(@"MEMORY WARNING FOR %@", self);
 
-  if (!_appearing) {
-    if (_appeared) {
-      TTLOG(@"UNLOAD VIEW %@", self);      
+  if (_hasViewAppeared && !_isViewAppearing) {
+    NSMutableDictionary* state = [[NSMutableDictionary alloc] init];
+    [self persistView:state];
+    self.frozenState = state;
+  
+    // This will come around to calling viewDidUnload
+    [super didReceiveMemoryWarning];
 
-      NSMutableDictionary* state = [[NSMutableDictionary alloc] init];
-      [self persistView:state];
-      _frozenState = state;
-
-      NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
-
-      UIView* view = self.view;
-      [super didReceiveMemoryWarning];
-
-      // Sometimes, like when the controller is in a tab bar, the view won't
-      // be destroyed here like it should by the superclass - so let's do it ourselves!
-      [view removeSubviews];
-
-      _viewState = TTViewEmpty;
-      _invalidView = YES;
-      _appeared = NO;
-      _unloaded = YES;
-      
-      [pool release];
-
-      [self unloadView];
-    }
+    _hasViewAppeared = NO;
+  } else {
+    [super didReceiveMemoryWarning];
   }
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// UIViewController (TTCategory)
+
+- (NSDictionary*)frozenState {
+  return _frozenState;
+}
+
+- (void)setFrozenState:(NSDictionary*)frozenState {
+  [_frozenState release];
+  _frozenState = [frozenState retain];
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // UIKeyboardNotifications
 
 - (void)keyboardWillShow:(NSNotification*)notification {
-  if (self.appearing) {
-    BOOL animated = [self resizeForKeyboard:notification];
-    [self keyboardWillAppear:animated];
+  if (self.isViewAppearing) {
+    [self resizeForKeyboard:notification appearing:YES];
   }
 }
 
 - (void)keyboardWillHide:(NSNotification*)notification {
-  if (self.appearing) {
-    BOOL animated = [self resizeForKeyboard:notification];
-    [self keyboardWillDisappear:animated];
+  if (self.isViewAppearing) {
+    [self resizeForKeyboard:notification appearing:NO];
   }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // public
 
-- (id<TTPersistable>)viewObject {
-  return nil;
+- (TTTableViewController*)searchViewController {
+  return _searchController.searchResultsViewController;
 }
 
-- (NSString*)viewType {
-  return nil;
+- (void)setSearchViewController:(TTTableViewController*)searchViewController {
+  if (searchViewController) {
+    if (!_searchController) {
+      UISearchBar* searchBar = [[[UISearchBar alloc] init] autorelease];
+      [searchBar sizeToFit];
+
+      _searchController = [[TTSearchDisplayController alloc] initWithSearchBar:searchBar
+                                                             contentsController:self];
+    }
+    
+    searchViewController.superController = self;
+    _searchController.searchResultsViewController = searchViewController;
+  } else {
+    _searchController.searchResultsViewController = nil;
+    TT_RELEASE_SAFELY(_searchController);
+  }
 }
 
 - (void)setAutoresizesForKeyboard:(BOOL)autoresizesForKeyboard {
@@ -219,129 +263,16 @@
   }
 }
 
-- (void)showObject:(id)object inView:(NSString*)viewType withState:(NSDictionary*)state {
-  [_frozenState release];
-  _frozenState = [state retain];
+- (void)keyboardWillAppear:(BOOL)animated withBounds:(CGRect)bounds {
 }
 
-- (void)persistView:(NSMutableDictionary*)state {
+- (void)keyboardWillDisappear:(BOOL)animated withBounds:(CGRect)bounds {
 }
 
-- (void)restoreView:(NSDictionary*)state {
-} 
-
-- (void)reloadContent {
+- (void)keyboardDidAppear:(BOOL)animated withBounds:(CGRect)bounds {
 }
 
-- (void)refreshContent {
-}
-
-- (void)invalidateView {
-  _invalidView = YES;
-  _viewState = TTViewEmpty;
-  if (_appearing) {
-    [self validateView];
-  }
-}
-
-- (void)invalidateViewState:(TTViewState)state {
-  if (!_invalidViewLoading) {
-    _invalidViewLoading = (_viewState & TTViewLoadingStates) != (state & TTViewLoadingStates);
-  }
-  if (!_invalidViewData) {
-    _invalidViewData = state == TTViewDataLoaded || state == TTViewEmpty
-                       || (_viewState & TTViewDataStates) != (state & TTViewDataStates);
-  }
-  
-  _viewState = state;
-  
-  if (_appearing) {
-    [self validateView];
-  }
-}
-
-- (void)validateView {
-  if (!_validating) {
-    _validating = YES;
-    if (_invalidView) {
-      // Ensure the view is loaded
-      self.view;
-
-      [self updateView];
-
-      if (_frozenState && self.viewState & TTViewDataLoaded) {
-        [self restoreView:_frozenState];
-        [_frozenState release];
-        _frozenState = nil;
-      }
-
-      _invalidView = NO;
-    }
-    
-    if (_invalidViewLoading) {
-      [self updateLoadingView];
-      _invalidViewLoading = NO;
-    }
-
-    if (_invalidViewData) {
-      [self updateDataView];
-      _invalidViewData = NO;
-    }
-
-    _validating = NO;
-
-    [self refreshContent];
-  }
-}
-
-- (void)updateView {
-}
-
-- (void)updateLoadingView {
-}
-
-- (void)updateDataView {
-}
-
-- (void)unloadView {
-}
-
-- (void)keyboardWillAppear:(BOOL)animated {
-}
-
-- (void)keyboardWillDisappear:(BOOL)animated {
-}
-
-- (NSString*)titleForActivity {
-  if (self.viewState & TTViewRefreshing) {
-    return TTLocalizedString(@"Updating...", @"");
-  } else {
-    return TTLocalizedString(@"Loading...", @"");
-  }
-}
-
-- (UIImage*)imageForNoData {
-  return nil;
-}
-
-- (NSString*)titleForNoData {
-  return nil;
-}
-
-- (NSString*)subtitleForNoData {
-  return nil;
-}
-
-- (UIImage*)imageForError:(NSError*)error {
-  return nil;
-}
-
-- (NSString*)titleForError:(NSError*)error {
-  return TTLocalizedString(@"Error", @"");
-}
-
-- (NSString*)subtitleForError:(NSError*)error {
-  return TTLocalizedString(@"Sorry, an error has occurred.", @"");
+- (void)keyboardDidDisappear:(BOOL)animated withBounds:(CGRect)bounds {
 }
 
 @end

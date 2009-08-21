@@ -18,8 +18,7 @@ static CGFloat kMaxWidth = 250;
     _object = nil;
     _selected = NO;
     
-    _labelView = [[UILabel alloc] initWithFrame:CGRectZero];
-    _labelView.opaque = NO;
+    _labelView = [[UILabel alloc] init];
     _labelView.backgroundColor = [UIColor clearColor];
     _labelView.textColor = TTSTYLEVAR(textColor);
     _labelView.highlightedTextColor = TTSTYLEVAR(highlightedTextColor);
@@ -32,8 +31,8 @@ static CGFloat kMaxWidth = 250;
 }
 
 - (void)dealloc {
-  [_object release];
-  [_labelView release];
+  TT_RELEASE_SAFELY(_object);
+  TT_RELEASE_SAFELY(_labelView);
 	[super dealloc];
 }
 

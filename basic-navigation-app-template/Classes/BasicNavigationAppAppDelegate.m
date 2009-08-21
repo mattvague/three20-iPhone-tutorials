@@ -1,6 +1,6 @@
 #import "BasicNavigationAppAppDelegate.h"
 #import "RootViewController.h"
-
+#import "BNDefaultStylesheet.h"
 
 @implementation BasicNavigationAppAppDelegate
 
@@ -13,7 +13,9 @@
 
 - (void)applicationDidFinishLaunching:(UIApplication *)application {    
     
-    // Override point for customization after app launch    
+    // Register our stylesheet
+	[TTStyleSheet setGlobalStyleSheet:[[[BNDefaultStyleSheet alloc]   
+										init] autorelease]];
 	
 	[window addSubview:[navigationController view]];
     [window makeKeyAndVisible];

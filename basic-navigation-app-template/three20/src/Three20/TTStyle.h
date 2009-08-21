@@ -31,6 +31,8 @@
 
 - (id)initWithNext:(TTStyle*)next;
 
+- (TTStyle*)next:(TTStyle*)next;
+
 - (void)draw:(TTStyleContext*)context;
 
 - (UIEdgeInsets)addToInsets:(UIEdgeInsets)insets forSize:(CGSize)size;
@@ -39,6 +41,7 @@
 - (void)addStyle:(TTStyle*)style;
 
 - (id)firstStyleOfClass:(Class)cls;
+- (id)styleForPart:(NSString*)name;
 
 @end
 
@@ -47,6 +50,22 @@
 @interface TTContentStyle : TTStyle
 
 + (TTContentStyle*)styleWithNext:(TTStyle*)next;
+
+@end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+@interface TTPartStyle : TTStyle {
+  NSString* _name;
+  TTStyle* _style;
+}
+
+@property(nonatomic,copy) NSString* name;
+@property(nonatomic,retain) TTStyle* style;
+
++ (TTPartStyle*)styleWithName:(NSString*)name style:(TTStyle*)style next:(TTStyle*)next;
+
+- (void)drawPart:(TTStyleContext*)context;
 
 @end
 
@@ -82,15 +101,22 @@
 @interface TTBoxStyle : TTStyle {
   UIEdgeInsets _margin;
   UIEdgeInsets _padding;
+  CGSize _minSize;
+  TTPosition _position;
 }
 
 @property(nonatomic) UIEdgeInsets margin;
 @property(nonatomic) UIEdgeInsets padding;
+@property(nonatomic) CGSize minSize;
+@property(nonatomic) TTPosition position;
 
 + (TTBoxStyle*)styleWithMargin:(UIEdgeInsets)margin next:(TTStyle*)next;
 + (TTBoxStyle*)styleWithPadding:(UIEdgeInsets)padding next:(TTStyle*)next;
++ (TTBoxStyle*)styleWithFloats:(TTPosition)position next:(TTStyle*)next;
 + (TTBoxStyle*)styleWithMargin:(UIEdgeInsets)margin padding:(UIEdgeInsets)padding
                next:(TTStyle*)next;
++ (TTBoxStyle*)styleWithMargin:(UIEdgeInsets)margin padding:(UIEdgeInsets)padding
+               minSize:(CGSize)minSize position:(TTPosition)position next:(TTStyle*)next;
 
 @end
 
@@ -102,6 +128,7 @@
   UIColor* _shadowColor;
   CGSize _shadowOffset;
   CGFloat _minimumFontSize;
+  NSInteger _numberOfLines;
   UITextAlignment _textAlignment;
   UIControlContentVerticalAlignment _verticalAlignment;
   UILineBreakMode _lineBreakMode;
@@ -112,6 +139,7 @@
 @property(nonatomic,retain) UIColor* shadowColor;
 @property(nonatomic) CGFloat minimumFontSize;
 @property(nonatomic) CGSize shadowOffset;
+@property(nonatomic) NSInteger numberOfLines;
 @property(nonatomic) UITextAlignment textAlignment;
 @property(nonatomic) UIControlContentVerticalAlignment verticalAlignment;
 @property(nonatomic) UILineBreakMode lineBreakMode;
@@ -128,6 +156,13 @@
                 minimumFontSize:(CGFloat)minimumFontSize
                 shadowColor:(UIColor*)shadowColor shadowOffset:(CGSize)shadowOffset
                 next:(TTStyle*)next;
++ (TTTextStyle*)styleWithFont:(UIFont*)font color:(UIColor*)color
+                minimumFontSize:(CGFloat)minimumFontSize
+                shadowColor:(UIColor*)shadowColor shadowOffset:(CGSize)shadowOffset
+                textAlignment:(UITextAlignment)textAlignment
+                verticalAlignment:(UIControlContentVerticalAlignment)verticalAlignment
+                lineBreakMode:(UILineBreakMode)lineBreakMode numberOfLines:(NSInteger)numberOfLines
+                next:(TTStyle*)next;
 
 @end
 
@@ -138,21 +173,27 @@
   UIImage* _image;
   UIImage* _defaultImage;
   UIViewContentMode _contentMode;
+  CGSize _size;
 }
 
 @property(nonatomic,copy) NSString* imageURL;
 @property(nonatomic,retain) UIImage* image;
 @property(nonatomic,retain) UIImage* defaultImage;
+@property(nonatomic) CGSize size;
 @property(nonatomic) UIViewContentMode contentMode;
 
 + (TTImageStyle*)styleWithImageURL:(NSString*)imageURL next:(TTStyle*)next;
 + (TTImageStyle*)styleWithImageURL:(NSString*)imageURL defaultImage:(UIImage*)defaultImage
                  next:(TTStyle*)next;
++ (TTImageStyle*)styleWithImageURL:(NSString*)imageURL defaultImage:(UIImage*)defaultImage
+                 contentMode:(UIViewContentMode)contentMode
+                 size:(CGSize)size next:(TTStyle*)next;
 + (TTImageStyle*)styleWithImage:(UIImage*)image next:(TTStyle*)next;
-+ (TTImageStyle*)styleWithImage:(UIImage*)image contentMode:(UIViewContentMode)contentMode
-                 next:(TTStyle*)next;
 + (TTImageStyle*)styleWithImage:(UIImage*)image defaultImage:(UIImage*)defaultImage
                  next:(TTStyle*)next;
++ (TTImageStyle*)styleWithImage:(UIImage*)image defaultImage:(UIImage*)defaultImage
+                 contentMode:(UIViewContentMode)contentMode
+                 size:(CGSize)size next:(TTStyle*)next;
 
 @end
 
@@ -259,9 +300,12 @@
 @property(nonatomic,retain) UIColor* left;
 @property(nonatomic) CGFloat width;
 
-+ (TTFourBorderStyle*)styleWithTop:(UIColor*)top right:(UIColor*)right
-                      bottom:(UIColor*)bottom left:(UIColor*)left width:(CGFloat)width
-                      next:(TTStyle*)next;
++ (TTFourBorderStyle*)styleWithTop:(UIColor*)top right:(UIColor*)right bottom:(UIColor*)bottom
+                      left:(UIColor*)left width:(CGFloat)width next:(TTStyle*)next;
++ (TTFourBorderStyle*)styleWithTop:(UIColor*)top width:(CGFloat)width next:(TTStyle*)next;
++ (TTFourBorderStyle*)styleWithRight:(UIColor*)right width:(CGFloat)width next:(TTStyle*)next;
++ (TTFourBorderStyle*)styleWithBottom:(UIColor*)bottom width:(CGFloat)width next:(TTStyle*)next;
++ (TTFourBorderStyle*)styleWithLeft:(UIColor*)left width:(CGFloat)width next:(TTStyle*)next;
 
 @end
 
@@ -285,6 +329,24 @@
                        width:(CGFloat)width lightSource:(NSInteger)lightSource next:(TTStyle*)next;
 
 @end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+@interface TTLinearGradientBorderStyle : TTStyle {
+  UIColor* _color1;
+  UIColor* _color2;
+  CGFloat _width;
+}
+
+@property(nonatomic,retain) UIColor* color1;
+@property(nonatomic,retain) UIColor* color2;
+@property(nonatomic) CGFloat width;
+
++ (TTLinearGradientBorderStyle*)styleWithColor1:(UIColor*)color1 color2:(UIColor*)color2
+                                width:(CGFloat)width next:(TTStyle*)next;
+
+@end
+
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 

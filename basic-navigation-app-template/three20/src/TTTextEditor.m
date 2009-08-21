@@ -4,10 +4,41 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 static CGFloat kPaddingX = 8;
-static CGFloat kPaddingY = 11;
-static CGFloat kOffsetY = 3;
+static CGFloat kPaddingY = 8;
 
-static CGFloat kTextViewInset = 19;
+// XXXjoe This number is very sensitive - it is specifically calculated for precise word wrapping
+// with 15pt normal helvetica.  If you change this number at all, UITextView may wrap the text
+// before or after the TTTextEditor expands or contracts its height to match.  Obviously,
+// hard-coding this value here sucks, and I need to implement a solution that works for any font.
+static CGFloat kTextViewInset = 31;
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+@interface TTTextView : UITextView {
+  BOOL _autoresizesToText;
+  BOOL _overflowed;
+}
+
+@property(nonatomic) BOOL autoresizesToText;
+@property(nonatomic) BOOL overflowed;
+
+@end
+
+@implementation TTTextView
+
+@synthesize autoresizesToText = _autoresizesToText, overflowed = _overflowed;
+
+- (void)setContentOffset:(CGPoint)offset animated:(BOOL)animated {
+  if (_autoresizesToText && !_overflowed) {
+    // In autosizing mode, we don't ever allow the text view to scroll past zero
+    // unless it has past its maximum number of lines
+    [super setContentOffset:CGPointZero animated:animated];
+  } else {
+    [super setContentOffset:offset animated:animated];
+  }
+}
+
+@end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -31,6 +62,10 @@ static CGFloat kTextViewInset = 19;
     _textEditor = textEditor;
   }
   return self;
+}
+
+- (void)dealloc {
+  [super dealloc];
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -134,12 +169,12 @@ static CGFloat kTextViewInset = 19;
     _placeholderLabel = nil;
     _fixedTextLabel = nil;
 
-    _textView = [[UITextView alloc] initWithFrame:CGRectZero];
+    _textView = [[TTTextView alloc] init];
     _textView.delegate = _internal;
     _textView.editable = YES;
-    _textView.opaque = NO;
     _textView.backgroundColor = [UIColor clearColor];
     _textView.scrollsToTop = NO;
+    _textView.showsHorizontalScrollIndicator = NO;
     [self addSubview:_textView];
 
   }
@@ -147,12 +182,12 @@ static CGFloat kTextViewInset = 19;
 }
 
 - (void)dealloc {
-  [_internal release];
-  [_textView release];
-  [_placeholderLabel release];
-  [_placeholder release];
-  [_fixedText release];
-  [_fixedTextLabel release];
+  TT_RELEASE_SAFELY(_internal);
+  TT_RELEASE_SAFELY(_textView);
+  TT_RELEASE_SAFELY(_placeholderLabel);
+  TT_RELEASE_SAFELY(_placeholder);
+  TT_RELEASE_SAFELY(_fixedText);
+  TT_RELEASE_SAFELY(_fixedTextLabel);
   [super dealloc];
 }
 
@@ -161,7 +196,7 @@ static CGFloat kTextViewInset = 19;
 - (void)updatePlaceholder {
   if (_placeholder && !_editing && !_textView.text.length) {
     if (!_placeholderLabel) {
-      _placeholderLabel = [[UILabel alloc] initWithFrame:CGRectZero];
+      _placeholderLabel = [[UILabel alloc] init];
       _placeholderLabel.backgroundColor = [UIColor clearColor];
       [self addSubview:_placeholderLabel];
     }
@@ -182,10 +217,10 @@ static CGFloat kTextViewInset = 19;
 }
 
 - (CGFloat)heightThatFits:(BOOL*)overflowed {
-  CGSize characterSize = [@"M" sizeWithFont:_textView.font];
-  CGFloat minHeight = _minNumberOfLines * characterSize.height;
-  CGFloat maxHeight = _maxNumberOfLines * characterSize.height;
-  CGFloat maxWidth = self.width - (kPaddingX*2 + kTextViewInset);
+  CGFloat lineHeight = _textView.font.lineHeight;
+  CGFloat minHeight = _minNumberOfLines * lineHeight;
+  CGFloat maxHeight = _maxNumberOfLines * lineHeight;
+  CGFloat maxWidth = self.width - kTextViewInset;
   
   NSString* text = _textView.text;
   if (!text.length) {
@@ -193,15 +228,15 @@ static CGFloat kTextViewInset = 19;
   }
 
   CGSize textSize = [text sizeWithFont:_textView.font
-    constrainedToSize:CGSizeMake(maxWidth, CGFLOAT_MAX)
-    lineBreakMode:UILineBreakModeWordWrap];
+                          constrainedToSize:CGSizeMake(maxWidth, CGFLOAT_MAX)
+                          lineBreakMode:UILineBreakModeWordWrap];
   
   CGFloat newHeight = textSize.height;
   if ([text characterAtIndex:text.length-1] == 10) {
-    newHeight += characterSize.height;
+    newHeight += lineHeight;
   }
   if (_showsExtraLine) {
-    newHeight += characterSize.height;
+    newHeight += lineHeight;
   }
 
   if (overflowed) {
@@ -222,6 +257,9 @@ static CGFloat kTextViewInset = 19;
   CGFloat oldHeight = self.height;
   CGFloat newHeight = [self heightThatFits:&_overflowed];
   CGFloat diff = newHeight - oldHeight;
+
+  _textView.overflowed = _overflowed;
+  _textView.scrollEnabled = _overflowed;
   
   if (oldHeight && diff) {
     if ([_textDelegate respondsToSelector:@selector(textEditor:shouldResizeBy:)]) {
@@ -269,19 +307,30 @@ static CGFloat kTextViewInset = 19;
 //}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// UIResponder
+
+- (BOOL)becomeFirstResponder {
+  return [_textView becomeFirstResponder];
+}
+
+- (BOOL)resignFirstResponder {
+  return [_textView resignFirstResponder];
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // UIView
 
 - (void)layoutSubviews {
-  _textView.frame = CGRectMake(kPaddingX, kOffsetY, self.width-kPaddingX*2, self.height-kOffsetY);
-  if (!_overflowed) {
-    _textView.contentOffset = CGPointMake(0, 0);
-  }
-  _placeholderLabel.frame = CGRectMake(kPaddingX, 0, self.width-kPaddingX*2, self.height);
+  _textView.frame = CGRectMake(0, 0, self.width-kPaddingX*2, self.height);
+
+  [_placeholderLabel sizeToFit];
+  _placeholderLabel.frame = CGRectMake(kPaddingX, kPaddingY,
+                                       self.width-kPaddingX*2, _placeholderLabel.height);
     
   if (_fixedTextLabel) {
     [_fixedTextLabel sizeToFit];
     _fixedTextLabel.frame = CGRectMake(_textView.left+kPaddingX, _textView.top+kPaddingY,
-      _fixedTextLabel.width+2, _fixedTextLabel.height+4);
+                                       _fixedTextLabel.width+2, _fixedTextLabel.height+4);
   }
 }
 
@@ -308,7 +357,9 @@ static CGFloat kTextViewInset = 19;
     _textView.text = text;
   }
   [self updatePlaceholder];
-  [self constrainToText];
+  if (_autoresizesToText) {
+    [self constrainToText];
+  }
 }
 
 - (void)setPlaceholder:(NSString*)placeholder {
@@ -322,7 +373,7 @@ static CGFloat kTextViewInset = 19;
   _fixedText = [text copy];
   
   if (_fixedText && !_fixedTextLabel) {
-    _fixedTextLabel = [[UILabel alloc] initWithFrame:CGRectZero];
+    _fixedTextLabel = [[UILabel alloc] init];
     _fixedTextLabel.textColor = TTSTYLEVAR(placeholderTextColor);
     _fixedTextLabel.font = _textView.font;
     _fixedTextLabel.contentMode = UIViewContentModeBottom;
@@ -331,6 +382,11 @@ static CGFloat kTextViewInset = 19;
 
   _fixedTextLabel.hidden = !_fixedText;
   _fixedTextLabel.text = _fixedText;
+}
+
+- (void)setAutoresizesToText:(BOOL)autoresizesToText {
+  _autoresizesToText = autoresizesToText;
+  _textView.autoresizesToText = _autoresizesToText;
 }
 
 - (void)scrollContainerToCursor:(UIScrollView*)scrollView {

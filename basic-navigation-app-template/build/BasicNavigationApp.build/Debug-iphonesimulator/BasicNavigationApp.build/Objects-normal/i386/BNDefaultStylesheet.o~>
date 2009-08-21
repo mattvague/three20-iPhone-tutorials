@@ -1,0 +1,2 @@
+/Users/mattvague/Work/Projects/Blog/Three20/three20-iPhone-tutorials/basic-navigation-app-template 2/Classes/BNDefaultStylesheet.m:40: warning: property 'myFirstColor' requires method '-myFirstColor' to be defined - use @synthesize, @dynamic or provide a method implementation
+/Users/mattvague/Work/Projects/Blog/Three20/three20-iPhone-tutorials/basic-navigation-app-template 2/Classes/BNDefaultStylesheet.m:40: warning: property 'myFirstFont' requires method '-myFirstFont' to be defined - use @synthesize, @dynamic or provide a method implementation

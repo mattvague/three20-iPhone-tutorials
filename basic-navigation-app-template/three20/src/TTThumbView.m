@@ -6,7 +6,6 @@
 - (id)initWithFrame:(CGRect)frame {
 	if (self = [super initWithFrame:frame]) {
     self.backgroundColor = TTSTYLEVAR(thumbnailBackgroundColor);
-    self.opaque = YES;
     self.clipsToBounds = YES;
     
     [self setStylesWithSelector:@"thumbView:"];
@@ -24,8 +23,8 @@
   return [self imageForState:UIControlStateNormal];
 }
 
-- (void)setThumbURL:(NSString*)url {
-  [self setImage:url forState:UIControlStateNormal];
+- (void)setThumbURL:(NSString*)URL {
+  [self setImage:URL forState:UIControlStateNormal];
 }
 
 @end

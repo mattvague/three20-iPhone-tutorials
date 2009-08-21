@@ -1,5 +1,5 @@
 #include "Three20/TTLink.h"
-#include "Three20/TTNavigationCenter.h"
+#include "Three20/TTNavigator.h"
 #include "Three20/TTShape.h"
 #include "Three20/TTView.h"
 #include "Three20/TTDefaultStyleSheet.h"
@@ -8,13 +8,13 @@
 
 @implementation TTLink
 
-@synthesize url = _url;
+@synthesize URL = _URL;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // private
 
 - (void)linkTouched {
-  [[TTNavigationCenter defaultCenter] displayObject:_url];
+  TTOpenURL(_URL);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -22,9 +22,10 @@
 
 - (id)initWithFrame:(CGRect)frame {
   if (self = [super initWithFrame:frame]) {
-    _url = nil;
+    _URL = nil;
     _screenView = nil;
     
+    self.userInteractionEnabled = NO;
     [self addTarget:self action:@selector(linkTouched)
           forControlEvents:UIControlEventTouchUpInside];
   }
@@ -32,8 +33,8 @@
 }
 
 - (void)dealloc {
-  [_url release];
-  [_screenView release];
+  TT_RELEASE_SAFELY(_URL);
+  TT_RELEASE_SAFELY(_screenView);
   [super dealloc];
 }
 
@@ -69,11 +70,11 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-- (void)setUrl:(id)url {
-  [_url release];
-  _url = [url retain];
+- (void)setURL:(id)URL {
+  [_URL release];
+  _URL = [URL retain];
   
-  self.userInteractionEnabled = !!_url;
+  self.userInteractionEnabled = !!_URL;
 }
 
 @end

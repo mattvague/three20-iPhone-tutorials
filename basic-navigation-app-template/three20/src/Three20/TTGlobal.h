@@ -1,10 +1,15 @@
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
 #import "Three20/NSObjectAdditions.h"
+#import "Three20/NSStringAdditions.h"
+#import "Three20/NSDateAdditions.h"
 #import "Three20/NSArrayAdditions.h"
 #import "Three20/UIColorAdditions.h"
+#import "Three20/UIFontAdditions.h"
 #import "Three20/UIImageAdditions.h"
 #import "Three20/UIViewControllerAdditions.h"
+#import "Three20/UINavigationControllerAdditions.h"
+#import "Three20/UITabBarControllerAdditions.h"
 #import "Three20/UIViewAdditions.h"
 #import "Three20/UITableViewAdditions.h"
 #import "Three20/UIWebViewAdditions.h"
@@ -18,6 +23,8 @@
 #else
 #define TTLOG    
 #endif
+
+#define TTWARN TTLOG
 
 #define TTLOGRECT(rect) \
   TTLOG(@"%s x=%f, y=%f, w=%f, h=%f", #rect, rect.origin.x, rect.origin.y, \
@@ -46,23 +53,20 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Dimensions of common iPhone OS Views
 
-#define STATUS_HEIGHT 20
-#define TOOLBAR_HEIGHT 44
-#define KEYBOARD_HEIGHT 216
-#define CHROME_HEIGHT (STATUS_HEIGHT + TOOLBAR_HEIGHT)
-#define TABLE_GROUPED_PADDING 10
+#define TT_ROW_HEIGHT 44
+#define TT_KEYBOARD_HEIGHT 216
 #define TT_ROUNDED -1
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Color helpers
 
-#define RGBCOLOR(r,g,b) [UIColor colorWithRed:r/256.0 green:g/256.0 blue:b/256.0 alpha:1]
-#define RGBACOLOR(r,g,b,a) [UIColor colorWithRed:r/256.0 green:g/256.0 blue:b/256.0 alpha:a]
+#define RGBCOLOR(r,g,b) [UIColor colorWithRed:r/255.0 green:g/255.0 blue:b/255.0 alpha:1]
+#define RGBACOLOR(r,g,b,a) [UIColor colorWithRed:r/255.0 green:g/255.0 blue:b/255.0 alpha:a]
 
 #define HSVCOLOR(h,s,v) [UIColor colorWithHue:h saturation:s value:v alpha:1]
 #define HSVACOLOR(h,s,v,a) [UIColor colorWithHue:h saturation:s value:v alpha:a]
 
-#define RGBA(r,g,b,a) r/256.0, g/256.0, b/256.0, a
+#define RGBA(r,g,b,a) r/255.0, g/255.0, b/255.0, a
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Style helpers
@@ -76,7 +80,17 @@
 
 #define TTSTYLEVAR(_VARNAME) [TTSTYLESHEET _VARNAME]
 
+#define TTLOGVIEWS(_VIEW) \
+  { for (UIView* view = _VIEW; view; view = view.superview) { TTLOG(@"%@", view); } }
+
 #define TTIMAGE(_URL) [[TTURLCache sharedCache] imageForURL:_URL]
+
+typedef enum {
+  TTPositionStatic,
+  TTPositionAbsolute,
+  TTPositionFloatLeft,
+  TTPositionFloatRight,
+} TTPosition;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Networking
@@ -86,14 +100,25 @@ typedef enum {
    TTURLRequestCachePolicyMemory = 1,
    TTURLRequestCachePolicyDisk = 2,
    TTURLRequestCachePolicyNetwork = 4,
-   TTURLRequestCachePolicyAny
-    = (TTURLRequestCachePolicyMemory|TTURLRequestCachePolicyDisk|TTURLRequestCachePolicyNetwork),
    TTURLRequestCachePolicyNoCache = 8,    
-   TTURLRequestCachePolicyDefault = TTURLRequestCachePolicyAny,
+   TTURLRequestCachePolicyLocal
+    = (TTURLRequestCachePolicyMemory|TTURLRequestCachePolicyDisk),
+   TTURLRequestCachePolicyDefault
+    = (TTURLRequestCachePolicyMemory|TTURLRequestCachePolicyDisk|TTURLRequestCachePolicyNetwork),
 } TTURLRequestCachePolicy;
 
 #define TT_DEFAULT_CACHE_INVALIDATION_AGE (60*60*24) // 1 day
 #define TT_DEFAULT_CACHE_EXPIRATION_AGE (60*60*24*7) // 1 week
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Time
+
+#define TT_MINUTE 60
+#define TT_HOUR (60*TT_MINUTE)
+#define TT_DAY (24*TT_HOUR)
+#define TT_WEEK (7*TT_DAY)
+#define TT_MONTH (30.5*TT_DAY)
+#define TT_YEAR (365*TT_DAY)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Animation
@@ -109,20 +134,34 @@ typedef enum {
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+#define TT_RELEASE_SAFELY(__POINTER) { [__POINTER release]; __POINTER = nil; }
+#define TT_AUTORELEASE_SAFELY(__POINTER) { [__POINTER autorelease]; __POINTER = nil; }
+#define TT_RELEASE_TIMER(__TIMER) { [__TIMER invalidate]; __TIMER = nil; }
+
 /**
  * Creates a mutable array which does not retain references to the objects it contains.
  */
 NSMutableArray* TTCreateNonRetainingArray();
 
 /**
+ * Creates a mutable dictionary which does not retain references to the values it contains.
+ */
+NSMutableDictionary* TTCreateNonRetainingDictionary();
+
+/**
  * Tests if an object is an array which is empty.
  */
-BOOL TTIsEmptyArray(NSObject* object);
+BOOL TTIsEmptyArray(id object);
+
+/**
+ * Tests if an object is a set which is empty.
+ */
+BOOL TTIsEmptyArray(id object);
 
 /**
  * Tests if an object is a string which is empty.
  */
-BOOL TTIsEmptyString(NSObject* object);
+BOOL TTIsEmptyString(id object);
 /**
  * Gets the current device orientation.
  */
@@ -144,14 +183,34 @@ CGRect TTApplicationFrame();
 CGRect TTNavigationFrame();
 
 /**
+ * Gets the application frame below the navigation bar and above the keyboard.
+ */
+CGRect TTKeyboardNavigationFrame();
+
+/**
  * Gets the application frame below the navigation bar and above a toolbar.
  */
 CGRect TTToolbarNavigationFrame();
 
 /**
+ * The height of the area containing the status bar and possibly the in-call status bar.
+ */
+CGFloat TTStatusHeight();
+
+/**
+ * The height of the area containing the status bar and navigation bar.
+ */
+CGFloat TTBarsHeight();
+
+/**
  * Returns a rectangle that is smaller or larger than the source rectangle.
  */
 CGRect TTRectContract(CGRect rect, CGFloat dx, CGFloat dy);
+
+/**
+ * Returns a rectangle whose edges have been moved a distance and shortened by that distance.
+ */
+CGRect TTRectShift(CGRect rect, CGFloat dx, CGFloat dy);
 
 /**
  * Returns a rectangle whose edges have been added to the insets.
@@ -173,6 +232,22 @@ void TTNetworkRequestStarted();
 void TTNetworkRequestStopped();
 
 /**
+ * A convenient way to show a UIAlertView with a message;
+ */
+void TTAlert(NSString* message);
+void TTAlertError(NSString* message);
+
+/**
+ * Gets the current runtime version of iPhone OS.
+ */
+float TTOSVersion();
+
+/**
+ * Checks if the link-time version of the OS is at least a certain version.
+ */
+BOOL TTOSVersionIsAtLeast(float version);
+
+/**
  * Gets the current system locale chosen by the user.
  *
  * This is necessary because [NSLocale currentLocale] always returns en_US.
@@ -184,38 +259,16 @@ NSLocale* TTCurrentLocale();
  */
 NSString* TTLocalizedString(NSString* key, NSString* comment);
 
-BOOL TTIsBundleURL(NSString* url);
+NSString* TTDescriptionForError(NSError* error);
 
-BOOL TTIsDocumentsURL(NSString* url);
+NSString* TTFormatInteger(NSInteger num);
+
+BOOL TTIsBundleURL(NSString* URL);
+
+BOOL TTIsDocumentsURL(NSString* URL);
 
 NSString* TTPathForBundleResource(NSString* relativePath);
 
 NSString* TTPathForDocumentsResource(NSString* relativePath);
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-@protocol TTPersistable <NSObject>
-
-@property(nonatomic,readonly) NSString* viewURL;
-
-+ (id<TTPersistable>)fromURL:(NSURL*)url;
-
-@end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-@protocol TTLoadable <NSObject>
-
-@property(nonatomic,readonly) NSMutableArray* delegates;
-@property(nonatomic,readonly) NSDate* loadedTime;
-@property(nonatomic,readonly) BOOL isLoaded;
-@property(nonatomic,readonly) BOOL isLoading;
-@property(nonatomic,readonly) BOOL isLoadingMore;
-@property(nonatomic,readonly) BOOL isOutdated;
-@property(nonatomic,readonly) BOOL isEmpty;
-
-- (void)invalidate:(BOOL)erase;
-- (void)cancel;
-
-@end
-
+void TTSwapMethods(Class cls, SEL originalSel, SEL newSel);

@@ -1,10 +1,12 @@
 #import "Three20/TTTableViewDelegate.h"
 #import "Three20/TTTableViewDataSource.h"
 #import "Three20/TTTableViewController.h"
-#import "Three20/TTTableField.h"
-#import "Three20/TTTableFieldCell.h"
+#import "Three20/TTTableItem.h"
+#import "Three20/TTTableItemCell.h"
 #import "Three20/TTTableHeaderView.h"
-#import "Three20/TTNavigationCenter.h"
+#import "Three20/TTTableView.h"
+#import "Three20/TTStyledTextLabel.h"
+#import "Three20/TTNavigator.h"
 #import "Three20/TTDefaultStyleSheet.h"
 #import "Three20/TTURLRequestQueue.h"
 
@@ -26,8 +28,14 @@ static const CGFloat kSectionHeaderHeight = 35;
 - (id)initWithController:(TTTableViewController*)controller {
   if (self = [super init]) {
     _controller = controller;
+    _headers = nil;
   }
   return self;
+}
+
+- (void)dealloc {
+  TT_RELEASE_SAFELY(_headers);
+  [super dealloc];
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -38,7 +46,15 @@ static const CGFloat kSectionHeaderHeight = 35;
     if ([tableView.dataSource respondsToSelector:@selector(tableView:titleForHeaderInSection:)]) {
       NSString* title = [tableView.dataSource tableView:tableView titleForHeaderInSection:section];
       if (title.length) {
-        return [[[TTTableHeaderView alloc] initWithTitle:title] autorelease];
+        TTTableHeaderView* header = [_headers objectForKey:title];
+        if (!header) {
+          if (!_headers) {
+            _headers = [[NSMutableDictionary alloc] init];
+          }
+          header = [[[TTTableHeaderView alloc] initWithTitle:title] autorelease];
+          [_headers setObject:header forKey:title];
+        }
+        return header;
       }
     }
   }
@@ -47,35 +63,46 @@ static const CGFloat kSectionHeaderHeight = 35;
 
 - (void)tableView:(UITableView*)tableView didSelectRowAtIndexPath:(NSIndexPath*)indexPath {
   id<TTTableViewDataSource> dataSource = (id<TTTableViewDataSource>)tableView.dataSource;
-
   id object = [dataSource tableView:tableView objectForRowAtIndexPath:indexPath];
-  if ([object isKindOfClass:[TTTableField class]]) {
-    TTTableField* field = object;
-    if (field.url) {
-      [[TTNavigationCenter defaultCenter] displayURL:field.url];
+  if ([object isKindOfClass:[TTTableLinkedItem class]]) {
+    TTTableLinkedItem* item = object;
+    if (item.URL && [_controller shouldOpenURL:item.URL]) {
+      TTOpenURL(item.URL);
     }
 
-    if ([field isKindOfClass:[TTButtonTableField class]]) {
+    if ([object isKindOfClass:[TTTableButton class]]) {
       [tableView deselectRowAtIndexPath:indexPath animated:YES];
-    } else if ([object isKindOfClass:[TTMoreButtonTableField class]]) {
-      TTMoreButtonTableField* moreLink = (TTMoreButtonTableField*)object;
+    } else if ([object isKindOfClass:[TTTableMoreButton class]]) {
+      TTTableMoreButton* moreLink = (TTTableMoreButton*)object;
       moreLink.isLoading = YES;
-      TTMoreButtonTableFieldCell* cell
-        = (TTMoreButtonTableFieldCell*)[tableView cellForRowAtIndexPath:indexPath];
+      TTTableMoreButtonCell* cell
+        = (TTTableMoreButtonCell*)[tableView cellForRowAtIndexPath:indexPath];
       cell.animating = YES;
       [tableView deselectRowAtIndexPath:indexPath animated:YES];
       
-      [dataSource load:TTURLRequestCachePolicyDefault nextPage:YES];
+      [_controller.model load:TTURLRequestCachePolicyDefault more:YES];
     }
   }
 
   [_controller didSelectObject:object atIndexPath:indexPath];
 }
 
+- (void)tableView:(UITableView*)tableView
+        accessoryButtonTappedForRowWithIndexPath:(NSIndexPath*)indexPath {
+  id<TTTableViewDataSource> dataSource = (id<TTTableViewDataSource>)tableView.dataSource;
+  id object = [dataSource tableView:tableView objectForRowAtIndexPath:indexPath];
+  if ([object isKindOfClass:[TTTableLinkedItem class]]) {
+    TTTableLinkedItem* item = object;
+    if (item.accessoryURL && [_controller shouldOpenURL:item.accessoryURL]) {
+      TTOpenURL(item.accessoryURL);
+    }
+  }
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // UIScrollViewDelegate
 
-- (BOOL)scrollViewWillScrollToTop:(UIScrollView *)scrollView {
+- (BOOL)scrollViewShouldScrollToTop:(UIScrollView *)scrollView {
   [TTURLRequestQueue mainQueue].suspended = YES;
   return YES;
 }
@@ -88,6 +115,12 @@ static const CGFloat kSectionHeaderHeight = 35;
   [TTURLRequestQueue mainQueue].suspended = YES;
 
   [_controller didBeginDragging];
+  
+  if ([scrollView isKindOfClass:[TTTableView class]]) {
+    TTTableView* tableView = (TTTableView*)scrollView;
+    tableView.highlightedLabel.highlightedNode = nil;
+    tableView.highlightedLabel = nil;
+  }
 }
 
 - (void)scrollViewDidEndDragging:(UIScrollView *)scrollView willDecelerate:(BOOL)decelerate {
@@ -116,7 +149,7 @@ static const CGFloat kSectionHeaderHeight = 35;
 
   id object = [dataSource tableView:tableView objectForRowAtIndexPath:indexPath];
   Class cls = [dataSource tableView:tableView cellClassForObject:object];
-  return [cls tableView:tableView rowHeightForItem:object];
+  return [cls tableView:tableView rowHeightForObject:object];
 }
 
 @end
@@ -124,35 +157,11 @@ static const CGFloat kSectionHeaderHeight = 35;
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 @implementation TTTableViewPlainDelegate
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// UITableViewDelegate
-
-- (UIView*)tableView:(UITableView *)tableView viewForHeaderInSection:(NSInteger)section {
-  NSString* title = [tableView.dataSource tableView:tableView titleForHeaderInSection:section];
-  if (!title.length)
-    return nil;
-
-  return [[[TTTableHeaderView alloc] initWithTitle:title] autorelease];
-}
-
 @end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 @implementation TTTableViewPlainVarHeightDelegate
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// UITableViewDelegate
-
-- (UIView*)tableView:(UITableView *)tableView viewForHeaderInSection:(NSInteger)section {
-  NSString* title = [tableView.dataSource tableView:tableView titleForHeaderInSection:section];
-  if (!title.length)
-    return nil;
-
-  return [[[TTTableHeaderView alloc] initWithTitle:title] autorelease];
-}
-
 @end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

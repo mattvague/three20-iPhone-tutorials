@@ -46,8 +46,7 @@
     [self parseText:_chars];
   }
   
-  [_chars release];
-  _chars = nil;
+  TT_RELEASE_SAFELY(_chars);
 }
 
 - (void)parseURLs:(NSString*)string {
@@ -74,17 +73,17 @@
       NSRange endRange = [string rangeOfString:@" " options:NSCaseInsensitiveSearch
                                  range:searchRange];
       if (endRange.location == NSNotFound) {
-        NSString* url = [string substringWithRange:searchRange];
-        TTStyledLinkNode* node = [[[TTStyledLinkNode alloc] initWithText:url] autorelease];
-        node.url = url;
+        NSString* URL = [string substringWithRange:searchRange];
+        TTStyledLinkNode* node = [[[TTStyledLinkNode alloc] initWithText:URL] autorelease];
+        node.URL = URL;
         [self addNode:node];
         break;
       } else {
-        NSRange urlRange = NSMakeRange(startRange.location,
+        NSRange URLRange = NSMakeRange(startRange.location,
                                              endRange.location - startRange.location);
-        NSString* url = [string substringWithRange:urlRange];
-        TTStyledLinkNode* node = [[[TTStyledLinkNode alloc] initWithText:url] autorelease];
-        node.url = url;
+        NSString* URL = [string substringWithRange:URLRange];
+        TTStyledLinkNode* node = [[[TTStyledLinkNode alloc] initWithText:URL] autorelease];
+        node.URL = URL;
         [self addNode:node];
         index = endRange.location;
       }
@@ -109,9 +108,9 @@
 }
 
 - (void)dealloc {
-  [_rootNode release];
-  [_chars release];
-  [_stack release];
+  TT_RELEASE_SAFELY(_rootNode);
+  TT_RELEASE_SAFELY(_chars);
+  TT_RELEASE_SAFELY(_stack);
   [super dealloc];
 }
 
@@ -144,15 +143,24 @@
     [self pushNode:node];
   } else if ([tag isEqualToString:@"a"]) {
     TTStyledLinkNode* node = [[[TTStyledLinkNode alloc] init] autorelease];
-    node.url =  [attributeDict objectForKey:@"href"];
+    node.URL =  [attributeDict objectForKey:@"href"];
     [self pushNode:node];
   } else if ([tag isEqualToString:@"button"]) {
     TTStyledButtonNode* node = [[[TTStyledButtonNode alloc] init] autorelease];
-    node.url =  [attributeDict objectForKey:@"href"];
+    node.URL =  [attributeDict objectForKey:@"href"];
     [self pushNode:node];
   } else if ([tag isEqualToString:@"img"]) {
     TTStyledImageNode* node = [[[TTStyledImageNode alloc] init] autorelease];
-    node.url =  [attributeDict objectForKey:@"src"];
+    node.className =  [attributeDict objectForKey:@"class"];
+    node.URL =  [attributeDict objectForKey:@"src"];
+    NSString* width = [attributeDict objectForKey:@"width"];
+    if (width) {
+      node.width = width.floatValue;
+    }
+    NSString* height = [attributeDict objectForKey:@"height"];
+    if (height) {
+      node.height = height.floatValue;
+    }
     [self pushNode:node];
   }
 }
@@ -169,6 +177,20 @@
     namespaceURI:(NSString *)namespaceURI qualifiedName:(NSString *)qName {
   [self flushCharacters];
   [self popNode];
+}
+
+- (NSData *)parser:(NSXMLParser *)parser resolveExternalEntityName:(NSString *)entityName systemID:(NSString *)systemID {
+  static NSDictionary* entityTable = nil;
+  if (!entityTable) {
+    entityTable = [[NSDictionary alloc] initWithObjectsAndKeys:
+      [NSData dataWithBytes:" " length:1], @"nbsp",
+      [NSData dataWithBytes:"&" length:1], @"amp",
+      [NSData dataWithBytes:"\"" length:1], @"quot",
+      [NSData dataWithBytes:"<" length:1], @"lt",
+      [NSData dataWithBytes:">" length:1], @"gt",
+      nil];
+  }
+  return [entityTable objectForKey:entityName];
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

@@ -22,7 +22,7 @@
 					20,
 					742,
 					20,
-					48.16259765625,
+					48,
 					43,
 					43,
 					20,
@@ -37,8 +37,8 @@
 					PBXFileDataSource_Target_ColumnID,
 				);
 			};
-			PBXPerProjectTemplateStateSaveDate = 272244586;
-			PBXWorkspaceStateSaveDate = 272244586;
+			PBXPerProjectTemplateStateSaveDate = 272591464;
+			PBXWorkspaceStateSaveDate = 272591464;
 		};
 		sourceControlManager = BDC7514E103A1F6B008A3F1D /* Source Control */;
 		userBuildSettings = {
@@ -51,12 +51,13 @@
 		argumentStrings = (
 		);
 		autoAttachOnCrash = 1;
-		breakpointsEnabled = 1;
+		breakpointsEnabled = 0;
 		configStateDict = {
 		};
 		customDataFormattersEnabled = 1;
 		debuggerPlugin = GDBDebugging;
 		disassemblyDisplayState = 0;
+		dylibVariantSuffix = "";
 		enableDebugStr = 1;
 		environmentEntries = (
 		);

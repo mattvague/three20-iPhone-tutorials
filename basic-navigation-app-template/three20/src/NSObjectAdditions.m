@@ -1,4 +1,5 @@
-#import "Three20/TTGlobal.h"
+#import "Three20/TTNavigator.h"
+#import "Three20/TTURLMap.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -126,6 +127,14 @@
   } else {
     return nil;
   }
+}
+
+- (NSString*)URLValue {
+  return [[TTNavigator navigator].URLMap URLForObject:self];
+}
+
+- (NSString*)URLValueWithName:(NSString*)name {
+  return [[TTNavigator navigator].URLMap URLForObject:self withName:name];
 }
 
 @end

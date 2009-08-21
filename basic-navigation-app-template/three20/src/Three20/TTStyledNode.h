@@ -12,7 +12,7 @@
 
 - (id)initWithNextSibling:(TTStyledNode*)nextSibling;
 
-- (id)firstParentOfClass:(Class)cls;
+- (id)ancestorOrSelfWithClass:(Class)cls;
 
 - (void) performDefaultAction;
 
@@ -48,6 +48,9 @@
 
 - (void)addChild:(TTStyledNode*)child;
 - (void)addText:(NSString*)text;
+- (void)replaceChild:(TTStyledNode*)oldChild withChild:(TTStyledNode*)newChild;
+
+- (TTStyledNode*)getElementByClassName:(NSString*)className;
 
 @end
 
@@ -79,46 +82,52 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 @interface TTStyledLinkNode : TTStyledInline {
-  NSString* _url;
+  NSString* _URL;
   BOOL _highlighted;
 }
 
 @property(nonatomic) BOOL highlighted;
-@property(nonatomic,retain) NSString* url;
+@property(nonatomic,retain) NSString* URL;
 
-- (id)initWithURL:(NSString*)url;
-- (id)initWithURL:(NSString*)url next:(TTStyledNode*)nextSibling;
-- (id)initWithText:(NSString*)text url:(NSString*)url next:(TTStyledNode*)nextSibling;
+- (id)initWithURL:(NSString*)URL;
+- (id)initWithURL:(NSString*)URL next:(TTStyledNode*)nextSibling;
+- (id)initWithText:(NSString*)text URL:(NSString*)URL next:(TTStyledNode*)nextSibling;
 
 @end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 @interface TTStyledButtonNode : TTStyledInlineBlock {
-  NSString* _url;
+  NSString* _URL;
   BOOL _highlighted;
 }
 
 @property(nonatomic) BOOL highlighted;
-@property(nonatomic,retain) NSString* url;
+@property(nonatomic,retain) NSString* URL;
 
-- (id)initWithURL:(NSString*)url;
-- (id)initWithURL:(NSString*)url next:(TTStyledNode*)nextSibling;
-- (id)initWithText:(NSString*)text url:(NSString*)url next:(TTStyledNode*)nextSibling;
+- (id)initWithURL:(NSString*)URL;
+- (id)initWithURL:(NSString*)URL next:(TTStyledNode*)nextSibling;
+- (id)initWithText:(NSString*)text URL:(NSString*)URL next:(TTStyledNode*)nextSibling;
 
 @end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 @interface TTStyledImageNode : TTStyledElement {
-  NSString* _url;
+  NSString* _URL;
   UIImage* _image;
+  UIImage* _defaultImage;
+  CGFloat _width;
+  CGFloat _height;
 }
 
-@property(nonatomic,retain) NSString* url;
+@property(nonatomic,retain) NSString* URL;
 @property(nonatomic,retain) UIImage* image;
+@property(nonatomic,retain) UIImage* defaultImage;
+@property(nonatomic) CGFloat width;
+@property(nonatomic) CGFloat height;
 
-- (id)initWithURL:(NSString*)url;
+- (id)initWithURL:(NSString*)URL;
 
 @end
 

@@ -28,6 +28,8 @@
 @property(nonatomic) CGFloat width;
 @property(nonatomic) CGFloat height;
 
+- (UIFont*)font;
+
 - (id)initWithElement:(TTStyledElement*)element;
 
 /**
@@ -59,9 +61,14 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-@interface TTStyledInlineFrame : TTStyledBoxFrame
+@interface TTStyledInlineFrame : TTStyledBoxFrame {
+  TTStyledInlineFrame* _inlinePreviousFrame;
+  TTStyledInlineFrame* _inlineNextFrame;
+}
 
 @property(nonatomic,readonly) TTStyledInlineFrame* inlineParentFrame;
+@property(nonatomic,assign) TTStyledInlineFrame* inlinePreviousFrame;
+@property(nonatomic,assign) TTStyledInlineFrame* inlineNextFrame;
 
 @end
 
@@ -94,14 +101,20 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-@interface TTStyledImageFrame : TTStyledFrame {
+@interface TTStyledImageFrame : TTStyledFrame <TTStyleDelegate> {
   TTStyledImageNode* _imageNode;
+  TTStyle* _style;
 }
 
 /** 
  * The node represented by the frame.
  */
 @property(nonatomic,readonly) TTStyledImageNode* imageNode;
+
+/**
+ * The style used to render the frame;
+ */
+@property(nonatomic,retain) TTStyle* style;
 
 - (id)initWithElement:(TTStyledElement*)element node:(TTStyledImageNode*)node;
 

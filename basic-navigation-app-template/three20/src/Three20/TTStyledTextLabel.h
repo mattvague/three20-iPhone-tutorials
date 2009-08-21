@@ -1,11 +1,11 @@
-#import "Three20/TTGlobal.h"
+#import "Three20/TTStyledText.h"
 
-@class TTStyledText, TTStyledElement, TTStyledBoxFrame, TTStyle;
+@class TTStyledElement, TTStyledBoxFrame, TTStyle;
 
 /**
  * A view that can display styled text.
  */
-@interface TTStyledTextLabel : UIView {
+@interface TTStyledTextLabel : UIView <TTStyledTextDelegate> {
   TTStyledText* _text;
   UIFont* _font;
   UIColor* _textColor;
@@ -21,6 +21,11 @@
  * The styled text displayed by the label.
  */
 @property(nonatomic, retain) TTStyledText* text;
+
+/**
+ * A shortcut for setting the text property to an HTML string.
+ */
+@property(nonatomic, copy) NSString* html;
 
 /**
  * The font of the text.

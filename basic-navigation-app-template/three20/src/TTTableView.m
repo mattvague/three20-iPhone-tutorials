@@ -1,7 +1,6 @@
 #import "Three20/TTTableView.h"
 #import "Three20/TTStyledNode.h"
 #import "Three20/TTStyledTextLabel.h"
-#import "Three20/TTNavigationCenter.h"
 #import "Three20/TTTableViewDelegate.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -13,16 +12,7 @@ static const CGFloat kCancelHighlightThreshold = 4;
 
 @implementation TTTableView
 
-@synthesize highlightedLabel = _highlightedLabel;
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// private
-
-- (void)hideMenuAnimationDidStop:(NSString*)animationID finished:(NSNumber*)finished
-        context:(void*)context {
-  UIView* menuView = (UIView*)context;
-  [menuView removeFromSuperview];
-}
+@synthesize highlightedLabel = _highlightedLabel, contentOrigin = _contentOrigin;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // NSObject
@@ -31,30 +21,14 @@ static const CGFloat kCancelHighlightThreshold = 4;
   if (self = [super initWithFrame:frame style:style]) {
     _highlightedLabel = nil;
     _highlightStartPoint = CGPointZero;
-    _highlightTimer = nil;
-    _menuView = nil;
-    _menuCell = nil;
-    
-    self.delaysContentTouches = NO;
+    _contentOrigin = 0;
   }
   return self;
 }
 
 - (void)dealloc {
-  [_highlightedLabel release];
-  [_highlightTimer invalidate];
-  [_menuView release];
-  [_menuCell release];
+  TT_RELEASE_SAFELY(_highlightedLabel);
   [super dealloc];
-}
-
-- (void)delayedTouchesEnded:(NSTimer*)timer {
-  _highlightTimer = nil;
-  
-  self.highlightedLabel = nil;
-  
-  TTStyledElement* element = timer.userInfo;
-  [element performDefaultAction];
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -63,63 +37,50 @@ static const CGFloat kCancelHighlightThreshold = 4;
 - (void)touchesBegan:(NSSet*)touches withEvent:(UIEvent*)event {
   [super touchesBegan:touches withEvent:event];
 
-  [_highlightTimer invalidate];
-  _highlightTimer = nil;
-  
   if (_highlightedLabel) {
     UITouch* touch = [touches anyObject];
     _highlightStartPoint = [touch locationInView:self];
   }
   
-  if ([self.delegate isKindOfClass:[TTTableViewDelegate class]]) {
-    TTTableViewDelegate* delegate = (TTTableViewDelegate*)self.delegate;
-    [delegate.controller touchesBegan:touches withEvent:event];
-  }
-  
-  if (_menuView) {
-    UITouch* touch = [touches anyObject];
-    CGPoint point = [touch locationInView:_menuView];
-    if (point.y < 0 || point.y > _menuView.height) {
-      [self hideMenu:YES];
-    } else {
-      UIView* hit = [_menuView hitTest:point withEvent:event];
-      if (![hit isKindOfClass:[UIControl class]]) {
-        [self hideMenu:YES];
-      }
-    }
-  }
-}
-
-- (void)touchesMoved:(NSSet*)touches withEvent:(UIEvent*)event {
-  [super touchesMoved:touches withEvent:event];
-
-  if (_highlightedLabel) {
-    UITouch* touch = [touches anyObject];
-    CGPoint newPoint = [touch locationInView:self];
-    CGFloat dx = newPoint.x - _highlightStartPoint.x;
-    CGFloat dy = newPoint.y - _highlightStartPoint.y;
-    CGFloat d = sqrt((dx*dx) + (dy+dy));
-    if (d > kCancelHighlightThreshold) {
-      _highlightedLabel.highlightedNode = nil;
-      self.highlightedLabel = nil;
-    }
-  }
+//  if (_menuView) {
+//    UITouch* touch = [touches anyObject];
+//    CGPoint point = [touch locationInView:_menuView];
+//    if (point.y < 0 || point.y > _menuView.height) {
+//      [self hideMenu:YES];
+//    } else {
+//      UIView* hit = [_menuView hitTest:point withEvent:event];
+//      if (![hit isKindOfClass:[UIControl class]]) {
+//        [self hideMenu:YES];
+//      }
+//    }
+//  }
 }
 
 - (void)touchesEnded:(NSSet*)touches withEvent:(UIEvent*)event {
+  [super touchesEnded:touches withEvent:event];
+
   if (_highlightedLabel) {
     TTStyledElement* element = _highlightedLabel.highlightedNode;
-    _highlightedLabel.highlightedNode = nil;
+    [element performDefaultAction];
+  }
+}
 
-    _highlightTimer = [NSTimer scheduledTimerWithTimeInterval:0.2 target:self
-             selector:@selector(delayedTouchesEnded:) userInfo:element repeats:NO];
-  } else {
-    [super touchesEnded:touches withEvent:event];
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// UIScrollView
 
-    if ([self.delegate isKindOfClass:[TTTableViewDelegate class]]) {
-      TTTableViewDelegate* delegate = (TTTableViewDelegate*)self.delegate;
-      [delegate.controller touchesEnded:touches withEvent:event];
+- (void)setContentSize:(CGSize)size {
+  if (_contentOrigin) {
+    CGFloat minHeight = self.height + _contentOrigin;
+    if (size.height < minHeight) {
+      size.height = self.height + _contentOrigin;
     }
+  }
+
+  CGFloat y = self.contentOffset.y;
+  [super setContentSize:size];
+
+  if (_contentOrigin) {
+    self.contentOffset = CGPointMake(0, y);
   }
 }
 
@@ -127,10 +88,12 @@ static const CGFloat kCancelHighlightThreshold = 4;
 // UITableView
 
 - (void)reloadData {
-  if (_menuView) {
-    [self hideMenu:NO];
-  }
+  CGFloat y = self.contentOffset.y;
   [super reloadData];
+
+  if (_contentOrigin) {
+    self.contentOffset = CGPointMake(0, y);
+  }
 }
 
 - (void)selectRowAtIndexPath:(NSIndexPath *)indexPath animated:(BOOL)animated
@@ -143,58 +106,11 @@ static const CGFloat kCancelHighlightThreshold = 4;
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // public
 
-- (void)showMenu:(UIView*)view forCell:(UITableViewCell*)cell animated:(BOOL)animated {
-  [self hideMenu:YES];
-
-  _menuView = [view retain];
-  _menuCell = [cell retain];
-  
-  // Insert the cell below all content subviews
-  [_menuCell.contentView insertSubview:_menuView atIndex:0];
-
-  if (animated) {
-    [UIView beginAnimations:nil context:nil];
-    [UIView setAnimationDuration:TT_FAST_TRANSITION_DURATION];
-    [UIView setAnimationCurve:UIViewAnimationCurveEaseIn];
-  }
-
-  // Move each content subview down, revealing the menu
-  for (UIView* view in _menuCell.contentView.subviews) {
-    if (view != _menuView) {
-      view.top += _menuCell.contentView.height;
-    }
-  }
-  
-  if (animated) {
-    [UIView commitAnimations];
-  }
-}
-
-- (void)hideMenu:(BOOL)animated {
-  if (_menuView) {
-    if (animated) {
-      [UIView beginAnimations:nil context:_menuView];
-      [UIView setAnimationDuration:TT_FAST_TRANSITION_DURATION];
-      [UIView setAnimationDelegate:self];
-      [UIView setAnimationDidStopSelector:@selector(hideMenuAnimationDidStop:finished:context:)];
-    }
-
-    for (UIView* view in _menuCell.contentView.subviews) {
-      if (view != _menuView) {
-        view.top -= _menuCell.contentView.height;
-      }
-    }
-
-    if (animated) {
-      [UIView commitAnimations];
-    } else {
-      [_menuView removeFromSuperview];
-    }
-
-    [_menuView release];
-    _menuView = nil;
-    [_menuCell release];
-    _menuCell = nil;
+- (void)setHighlightedLabel:(TTStyledTextLabel*)label {
+  if (label != _highlightedLabel) {
+    _highlightedLabel.highlightedNode = nil;
+    [_highlightedLabel release];
+    _highlightedLabel = [label retain];
   }
 }
 

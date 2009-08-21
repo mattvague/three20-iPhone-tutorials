@@ -2,9 +2,11 @@
 #import "Three20/TTDefaultStyleSheet.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// global
 
-static CGFloat kHPadding = 20;
-static CGFloat kVPadding = 50;
+static CGFloat kVPadding1 = 30;
+static CGFloat kVPadding2 = 20;
+static CGFloat kHPadding = 10;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -14,7 +16,7 @@ static CGFloat kVPadding = 50;
 // NSObject
 
 - (id)initWithTitle:(NSString*)title subtitle:(NSString*)subtitle image:(UIImage*)image {
-  if (self = [self initWithFrame:CGRectZero]) {
+  if (self = [self init]) {
     self.title = title;
     self.subtitle = subtitle;
     self.image = image;
@@ -24,20 +26,18 @@ static CGFloat kVPadding = 50;
 
 - (id)initWithFrame:(CGRect)frame {
   if (self = [super initWithFrame:frame]) {
-    _imageView = [[UIImageView alloc] initWithFrame:CGRectZero];
+    _imageView = [[UIImageView alloc] init];
     _imageView.contentMode = UIViewContentModeCenter;
     [self addSubview:_imageView];
 
-    _titleView = [[UILabel alloc] initWithFrame:CGRectZero];
-    _titleView.opaque = NO;
+    _titleView = [[UILabel alloc] init];
     _titleView.backgroundColor = [UIColor clearColor];
     _titleView.textColor = TTSTYLEVAR(tableErrorTextColor);
     _titleView.font = TTSTYLEVAR(errorTitleFont);
     _titleView.textAlignment = UITextAlignmentCenter;
     [self addSubview:_titleView];
     
-    _subtitleView = [[UILabel alloc] initWithFrame:CGRectZero];
-    _subtitleView.opaque = NO;
+    _subtitleView = [[UILabel alloc] init];
     _subtitleView.backgroundColor = [UIColor clearColor];
     _subtitleView.textColor = TTSTYLEVAR(tableErrorTextColor);
     _subtitleView.font = TTSTYLEVAR(errorSubtitleFont);
@@ -49,9 +49,9 @@ static CGFloat kVPadding = 50;
 }
 
 - (void)dealloc {
-  [_imageView release];
-  [_titleView release];
-  [_subtitleView release];
+  TT_RELEASE_SAFELY(_imageView);
+  TT_RELEASE_SAFELY(_titleView);
+  TT_RELEASE_SAFELY(_subtitleView);
   [super dealloc];
 }
 
@@ -59,38 +59,41 @@ static CGFloat kVPadding = 50;
 // UIView
 
 - (void)layoutSubviews {
-  [_subtitleView sizeToFit];
+  _subtitleView.size = [_subtitleView sizeThatFits:CGSizeMake(self.width - kHPadding*2, 0)];
   [_titleView sizeToFit];
   [_imageView sizeToFit];
-  
-  if (_titleView.text.length) {
-    if (_subtitleView.text.length || _imageView.image) {
-      _subtitleView.frame = CGRectMake(kHPadding, self.height - kVPadding,
-        self.width-kHPadding*2, _subtitleView.height);
-      _titleView.frame = CGRectMake(0, _subtitleView.top-kVPadding, self.width, _titleView.height);
-    } else {
-      _subtitleView.frame = CGRectZero;
-      _titleView.frame = CGRectMake(kHPadding, floor(self.height/2 - _titleView.height/2),
-        self.width - kHPadding*2, _titleView.height);
-    }
-  } else {
-    _titleView.frame = CGRectZero;
-    if (_imageView.image) {
-      _subtitleView.frame = CGRectMake(kHPadding, self.height - kVPadding,
-        self.width-kHPadding*2, _subtitleView.height);
-    } else {
-      _subtitleView.frame = CGRectMake(kHPadding, floor(self.height/2 - _subtitleView.height/2),
-        self.width-kHPadding*2, _subtitleView.height);
-    }
-  }
 
-  if (_imageView.image) {
-    CGFloat textTop = _titleView.height ? _titleView.top : _subtitleView.top;
-    
-    _imageView.frame = CGRectMake(self.width/2 - _imageView.width/2,
-      textTop/2 - (_imageView.height/2), _imageView.width, _imageView.height);
+  CGFloat maxHeight = _imageView.height + _titleView.height + _subtitleView.height
+                      + kVPadding1 + kVPadding2;
+  BOOL canShowImage = _imageView.image && self.height > maxHeight;
+  
+  CGFloat totalHeight = 0;
+
+  if (canShowImage) {
+    totalHeight += _imageView.height;
+  }
+  if (_titleView.text.length) {
+    totalHeight += (totalHeight ? kVPadding1 : 0) + _titleView.height;
+  }
+  if (_subtitleView.text.length) {
+    totalHeight += (totalHeight ? kVPadding2 : 0) + _subtitleView.height;
+  }
+  
+  CGFloat top = floor(self.height/2 - totalHeight/2);
+  
+  if (canShowImage) {
+    _imageView.origin = CGPointMake(floor(self.width/2 - _imageView.width/2), top);
+    _imageView.hidden = NO;
+    top += _imageView.height + kVPadding1;
   } else {
-    _imageView.frame = CGRectZero;
+    _imageView.hidden = YES;
+  }
+  if (_titleView.text.length) {
+    _titleView.origin = CGPointMake(floor(self.width/2 - _titleView.width/2), top);
+    top += _titleView.height + kVPadding2;
+  }
+  if (_subtitleView.text.length) {
+    _subtitleView.origin = CGPointMake(floor(self.width/2 - _subtitleView.width/2), top);
   }
 }
 

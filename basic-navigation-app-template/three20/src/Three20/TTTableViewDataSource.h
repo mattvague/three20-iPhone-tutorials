@@ -1,100 +1,125 @@
-#import "Three20/TTGlobal.h"
+#import "Three20/TTModel.h"
 
-@class TTTableViewCell;
+@protocol TTTableViewDataSource <UITableViewDataSource, TTModel, UISearchDisplayDelegate>
 
-@protocol TTTableViewDataSource <TTLoadable, UITableViewDataSource>
+/**
+ * Optional method to return a model object to delegate the TTModel protocol to.
+ */
+@property(nonatomic,retain) id<TTModel> model;
 
+/**
+ *
+ */
++ (NSArray*)lettersForSectionsWithSearch:(BOOL)search summary:(BOOL)summary;
+
+/**
+ *
+ */
 - (id)tableView:(UITableView*)tableView objectForRowAtIndexPath:(NSIndexPath*)indexPath;
 
+/**
+ *
+ */
 - (Class)tableView:(UITableView*)tableView cellClassForObject:(id)object;
 
+/**
+ *
+ */
 - (NSString*)tableView:(UITableView*)tableView labelForObject:(id)object;
 
+/**
+ *
+ */
 - (NSIndexPath*)tableView:(UITableView*)tableView indexPathForObject:(id)object;
 
-- (void)tableView:(UITableView*)tableView prepareCell:(UITableViewCell*)cell
-        forRowAtIndexPath:(NSIndexPath*)indexPath;
+/**
+ *
+ */
+- (void)tableView:(UITableView*)tableView cell:(UITableViewCell*)cell
+        willAppearAtIndexPath:(NSIndexPath*)indexPath;
 
-- (void)tableView:(UITableView*)tableView search:(NSString*)text;
+/**
+ * Informs the data source that its model loaded.
+ *
+ * That would be a good time to prepare the freshly loaded data for use in the table view.
+ */
+- (void)tableViewDidLoadModel:(UITableView*)tableView;
 
-- (void)load:(TTURLRequestCachePolicy)cachePolicy nextPage:(BOOL)nextPage;
+/**
+ *
+ */
+- (NSString*)titleForLoading:(BOOL)reloading;
 
-@end
+/**
+ *
+ */
+- (UIImage*)imageForEmpty;
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
+- (NSString*)titleForEmpty;
 
-@protocol TTTableViewDataSourceDelegate <NSObject>
+/**
+ *
+ */
+- (NSString*)subtitleForEmpty;
+
+/**
+ *
+ */
+- (UIImage*)imageForError:(NSError*)error;
+
+/**
+ *
+ */
+- (NSString*)titleForError:(NSError*)error;
+
+/**
+ *
+ */
+- (NSString*)subtitleForError:(NSError*)error;
 
 @optional
 
-- (void)dataSourceDidStartLoad:(id<TTTableViewDataSource>)dataSource;
-
-- (void)dataSourceDidFinishLoad:(id<TTTableViewDataSource>)dataSource;
-
-- (void)dataSource:(id<TTTableViewDataSource>)dataSource didFailLoadWithError:(NSError*)error;
-
-- (void)dataSourceDidCancelLoad:(id<TTTableViewDataSource>)dataSource;
-
-@end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-@interface TTDataSource : NSObject <TTTableViewDataSource> {
-  NSMutableArray* _delegates;
-}
-
-- (void)dataSourceDidStartLoad;
-
-- (void)dataSourceDidFinishLoad;
-
-- (void)dataSourceDidFailLoadWithError:(NSError*)error;
-
-- (void)dataSourceDidCancelLoad;
-
-@end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-@interface TTListDataSource : TTDataSource {
-  NSMutableArray* _items;
-}
-
-@property(nonatomic,readonly) NSMutableArray* items;
-
-+ (TTListDataSource*)dataSourceWithObjects:(id)object,...;
-+ (TTListDataSource*)dataSourceWithItems:(NSMutableArray*)items;
-
-- (id)initWithItems:(NSArray*)items;
-
-@end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-@interface TTSectionedDataSource : TTDataSource {
-  NSMutableArray* _sections;
-  NSMutableArray* _items;
-}
-
 /**
- * Objects should be in this format:
- *
- *   @"section title", item, item, @"section title", item, item, ...
  *
  */
-+ (TTSectionedDataSource*)dataSourceWithObjects:(id)object,...;
+- (NSIndexPath*)tableView:(UITableView*)tableView willUpdateObject:(id)object
+                atIndexPath:(NSIndexPath*)indexPath;
 
 /**
- * Objects should be in this format:
- *
- *   @"section title", arrayOfItems, @"section title", arrayOfItems, ...
  *
  */
-+ (TTSectionedDataSource*)dataSourceWithArrays:(id)object,...;
+- (NSIndexPath*)tableView:(UITableView*)tableView willInsertObject:(id)object
+                atIndexPath:(NSIndexPath*)indexPath;
 
-+ (TTSectionedDataSource*)dataSourceWithItems:(NSArray*)items sections:(NSArray*)sections;
+/**
+ *
+ */
+- (NSIndexPath*)tableView:(UITableView*)tableView willRemoveObject:(id)object
+                atIndexPath:(NSIndexPath*)indexPath;
 
-- (id)initWithItems:(NSArray*)items sections:(NSArray*)sections;
+/**
+ *
+ */
+- (void)search:(NSString*)text;
 
-- (NSArray*)lettersForSectionsWithSearch:(BOOL)withSearch withCount:(BOOL)withCount;
+@end
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+@interface TTTableViewDataSource : NSObject <TTTableViewDataSource> {
+  id<TTModel> _model;
+}
+
+@end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/**
+ * A datasource that is eternally loading.  Useful when you are in between data sources and
+ * want to show the impression of loading until your actual data source is available.
+ */
+@interface TTTableViewInterstialDataSource : TTTableViewDataSource <TTModel>
 @end

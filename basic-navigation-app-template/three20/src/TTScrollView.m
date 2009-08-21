@@ -6,6 +6,7 @@ static const NSInteger kOffscreenPages = 1;
 static const CGFloat kDefaultPageSpacing = 40.0;
 static const CGFloat kFlickThreshold = 60.0;
 static const CGFloat kTapZoom = 0.75;
+static const CGFloat kResistance = 0.15;
 static const NSInteger kInvalidIndex = -1;
 static const NSTimeInterval kFlickDuration = 0.4;
 static const NSTimeInterval kBounceDuration = 0.5;
@@ -17,7 +18,8 @@ static const NSTimeInterval kOvershoot = 2;
 
 @synthesize delegate = _delegate, dataSource = _dataSource, centerPageIndex = _centerPageIndex,
   pageSpacing = _pageSpacing, scrollEnabled = _scrollEnabled, zoomEnabled = _zoomEnabled,
-  rotateEnabled = _rotateEnabled, orientation = _orientation;
+  rotateEnabled = _rotateEnabled, orientation = _orientation,
+  holding = _holding, holdsAfterTouchingForInterval = _holdsAfterTouchingForInterval;
 
 - (id)initWithFrame:(CGRect)frame {
   if (self = [super initWithFrame:frame]) {
@@ -43,12 +45,15 @@ static const NSTimeInterval kOvershoot = 2;
     _zoomEnabled = YES;
     _rotateEnabled = YES;
     _orientation = TTDeviceOrientation();
+    _holdsAfterTouchingForInterval = 0;
     _tapTimer = nil;
+    _holdingTimer = nil;
     _animationTimer = nil;
     _touch1 = nil;
     _touch2 = nil;
     _dragging = NO;
     _zooming = NO;
+    _holding = NO;
     _overshoot = 0;
     
     for (NSInteger i = 0; i < _maxPages; ++i) {
@@ -69,9 +74,9 @@ static const NSTimeInterval kOvershoot = 2;
   _delegate = nil;
   [_animationTimer invalidate];
   [_tapTimer invalidate];
-  [_animationStartTime release];
-  [_pages release];
-  [_pageQueue release];
+  TT_RELEASE_SAFELY(_animationStartTime);
+  TT_RELEASE_SAFELY(_pages);
+  TT_RELEASE_SAFELY(_pageQueue);
   [super dealloc];
 }
 
@@ -100,10 +105,6 @@ static const NSTimeInterval kOvershoot = 2;
 
 - (BOOL)pulled {
   return _pageEdges.left > 0 || _pageEdges.top > 0 || _pageEdges.right < 0 || _pageEdges.bottom < 0;
-}
-
-- (BOOL)zoomed {
-  return _pageEdges.left != _pageEdges.right || _pageEdges.top != _pageEdges.bottom;
 }
 
 - (BOOL)flicked {
@@ -562,7 +563,7 @@ static const NSTimeInterval kOvershoot = 2;
 
 - (CGFloat)resist:(CGFloat)x1 to:(CGFloat)x2 max:(CGFloat)max {
   // The closer we get to the maximum, the less we are allowed to increment
-  CGFloat rl = (1 - (fabs(x2) / max)) * 0.1;
+  CGFloat rl = (1 - (fabs(x2) / max)) * kResistance;
   if (rl < 0) rl = 0;
   if (rl > 1) rl = 1;
   return x1 + ((x2 - x1) * rl);
@@ -609,9 +610,8 @@ static const NSTimeInterval kOvershoot = 2;
       }
     }
 
-    BOOL flipped = self.flipped;
-    BOOL flickPrevious = (left > 0 && !flipped) || (left < 0 && flipped);
-    BOOL flickNext = (right < 0 && !flipped) || (right > 0 && flipped);
+    BOOL flickPrevious = left > 0;
+    BOOL flickNext = right < 0;
     if (flickPrevious && ([self isFirstPage] || self.zoomed)) {
       left = [self resist:_pageEdges.left to:left max:width];
       if (_touchCount == 2) {
@@ -713,7 +713,7 @@ static const NSTimeInterval kOvershoot = 2;
 }
 
 - (BOOL)canZoom {
-  return _zoomEnabled
+  return _zoomEnabled && !_holding
         && (_zooming || ![_delegate respondsToSelector:@selector(scrollViewShouldZoom:)]
             || [_delegate scrollViewShouldZoom:self]);
 }
@@ -761,11 +761,6 @@ static const NSTimeInterval kOvershoot = 2;
     userInfo:touch repeats:NO];
 }
 
-- (void)cancelTapTimer {
-  [_tapTimer invalidate];
-  _tapTimer = nil;
-}
-
 - (void)tapTimer:(NSTimer*)timer {
   _tapTimer = nil;
 
@@ -775,11 +770,33 @@ static const NSTimeInterval kOvershoot = 2;
   }
 }
 
+- (void)beginHolding {
+  _holdingTimer = nil;
+  _holding = YES;
+  
+  if ([_delegate respondsToSelector:@selector(scrollViewDidBeginHolding:)]) {
+    [_delegate scrollViewDidBeginHolding:self];
+  }
+}
+
+- (void)endHolding {
+  _holding = NO;
+  
+  if ([_delegate respondsToSelector:@selector(scrollViewDidEndHolding:)]) {
+    [_delegate scrollViewDidEndHolding:self];
+  }
+}
+
+- (void)holdingTimer:(NSTimer*)timer {
+  _holdingTimer = nil;
+  [self beginHolding];
+}
+
 - (void)startAnimationTo:(UIEdgeInsets)edges duration:(NSTimeInterval)duration {
   if (!_animationTimer) {
     _pageStartEdges = _pageEdges;
     [self updateZooming:edges];
-    [self cancelTapTimer];
+    TT_RELEASE_TIMER(_tapTimer);
 
     _animateEdges = edges;
     _animationDuration = duration;
@@ -793,8 +810,7 @@ static const NSTimeInterval kOvershoot = 2;
   if (_animationTimer) {
     [_animationTimer invalidate];
     _animationTimer = nil;
-    [_animationStartTime release];
-    _animationStartTime = nil;
+    TT_RELEASE_SAFELY(_animationStartTime);
     _overshoot = 0;
     [self updateZooming:UIEdgeInsetsZero];
     
@@ -824,7 +840,7 @@ static const NSTimeInterval kOvershoot = 2;
 
   if (pct == 1.0) {
     if (_overshoot) {
-      [_animationStartTime release];
+      TT_RELEASE_SAFELY(_animationStartTime);
       [_animationTimer invalidate];
       _animationTimer = nil;
       [self startAnimationTo:UIEdgeInsetsMake(0, self.overshoot, 0, self.overshoot) duration:0.1];
@@ -863,23 +879,7 @@ static const NSTimeInterval kOvershoot = 2;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// UIView
-
-- (void)layoutSubviews {
-  [self layoutPage];
-  [self layoutAdjacentPages];
-
-  if (_visiblePageIndex != _centerPageIndex && self.centerPage) {
-    _visiblePageIndex = _centerPageIndex;
-    [_delegate scrollView:self didMoveToPageAtIndex:_centerPageIndex];
-  }
-}
-
-- (void)didMoveToSuperview {
-  if (!self.superview) {
-    [self stopAnimation:YES];
-  }
-}
+// UIResponder
 
 - (void)touchesBegan:(NSSet *)touches withEvent:(UIEvent *)event {
   [super touchesBegan:touches withEvent:event];
@@ -895,13 +895,19 @@ static const NSTimeInterval kOvershoot = 2;
           [_delegate scrollView:self touchedDown:touch];
         }
 
-        if (_scrollEnabled) {
+        if (_holdsAfterTouchingForInterval) {
+          _holdingTimer = [NSTimer scheduledTimerWithTimeInterval:_holdsAfterTouchingForInterval
+                                   target:self selector:@selector(holdingTimer:)
+                                   userInfo:nil repeats:NO];
+        }
+
+        if (_scrollEnabled && !_holding) {
           CGPoint pt = [self touchLocation:touch];
           _touchStartEdges = _touchEdges = [self touchEdgesForPoint:pt];
           _pageStartEdges = _pageEdges;
         }
       } else if (_touchCount == 2) {
-        if (_scrollEnabled) {
+        if (_scrollEnabled && !_holding) {
           CGPoint pt = [self touchLocation:touch];
           _touchEdges = [self squareTouchEdges:[self stretchTouchEdges:_touchEdges toPoint:pt]];
           _touchStartEdges = _touchEdges;
@@ -910,7 +916,7 @@ static const NSTimeInterval kOvershoot = 2;
       }
       
       if (touch.tapCount == 2) {
-        [self cancelTapTimer];
+        TT_RELEASE_TIMER(_tapTimer);
       }
     }
   }
@@ -918,11 +924,12 @@ static const NSTimeInterval kOvershoot = 2;
 
 - (void)touchesMoved:(NSSet*)touches withEvent:(UIEvent *)event {
   [super touchesMoved:touches withEvent:event];
-
-  if (_scrollEnabled && _touchCount && !_animationTimer) {
+  TT_RELEASE_TIMER(_holdingTimer);
+  
+  if (_scrollEnabled && !_holding && _touchCount && !_animationTimer) {
     if (!_dragging) {
       _dragging = YES;
-      [self cancelTapTimer];
+      TT_RELEASE_TIMER(_tapTimer);
       
       if ([_delegate respondsToSelector:@selector(scrollViewWillBeginDragging:)]) {
         [_delegate scrollViewWillBeginDragging:self];
@@ -941,8 +948,11 @@ static const NSTimeInterval kOvershoot = 2;
     CGFloat right = _pageStartEdges.right + (edges.right - _touchStartEdges.right);
     CGFloat top = _pageEdges.top;
     CGFloat bottom = _pageEdges.bottom;
-    if ((_touchCount == 2 || self.zoomed) && _zoomEnabled) {
-      CGFloat r = self.pageHeight / self.pageWidth;
+    if ((_touchCount == 2 || self.zoomed) && _zoomEnabled && !_holding) {
+      // XXXjoe I am sure this "r" had a purpose at one point, but months after writing it I'll
+      // be damned if I remember.  It's causing the image to get out of sync with your finger
+      // while dragging, so disabling it for now.
+      CGFloat r = 1;//self.pageHeight / self.pageWidth;
       top = _pageStartEdges.top + (edges.top - _touchStartEdges.top) * r;
       bottom = _pageStartEdges.bottom + (edges.bottom - _touchStartEdges.bottom) * r;
     }
@@ -960,6 +970,7 @@ static const NSTimeInterval kOvershoot = 2;
 
 - (void)touchesCancelled:(NSSet *)touches withEvent:(UIEvent *)event {
   [super touchesCancelled:touches withEvent:event];
+  TT_RELEASE_TIMER(_holdingTimer);
 
   for (UITouch* touch in touches) {
     [self removeTouch:touch];
@@ -977,7 +988,11 @@ static const NSTimeInterval kOvershoot = 2;
 
 - (void)touchesEnded:(NSSet*)touches withEvent:(UIEvent*)event {
   [super touchesEnded:touches withEvent:event];
-
+  TT_RELEASE_TIMER(_holdingTimer);
+  if (_holding) {
+    [self endHolding];
+  }
+  
   for (UITouch* touch in touches) {
     if (touch == _touch1 || touch == _touch2) {
       UITouch* remainingTouch = [self removeTouch:touch];
@@ -996,7 +1011,7 @@ static const NSTimeInterval kOvershoot = 2;
         } else if (touch.tapCount == 2 && self.canZoom) {
           CGPoint pt = [self touchLocation:touch];
           if (self.zoomed) {
-            [self startAnimationTo:[self reversePageEdges] duration:kFlickDuration];
+            [self zoomToFit];
           } else {
             [self startAnimationTo:[self zoomPageEdgesTo:pt] duration:kFlickDuration];
           }
@@ -1016,11 +1031,30 @@ static const NSTimeInterval kOvershoot = 2;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// UIView
+
+- (void)layoutSubviews {
+  [self layoutPage];
+  [self layoutAdjacentPages];
+
+  if (_visiblePageIndex != _centerPageIndex && self.centerPage) {
+    _visiblePageIndex = _centerPageIndex;
+    [_delegate scrollView:self didMoveToPageAtIndex:_centerPageIndex];
+  }
+}
+
+- (void)didMoveToSuperview {
+  if (!self.superview) {
+    [self stopAnimation:YES];
+  }
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // UIDeviceOrientationDidChangeNotification
 
 - (void)deviceOrientationDidChange:(void*)object {
   UIInterfaceOrientation orientation = TTDeviceOrientation();
-  if (_rotateEnabled
+  if (_rotateEnabled && !_holding
       && (![_delegate respondsToSelector:@selector(scrollView:shouldAutorotateToInterfaceOrientation:)]
       || [_delegate scrollView:self shouldAutorotateToInterfaceOrientation:orientation])) {
     self.orientation = orientation;
@@ -1028,6 +1062,10 @@ static const NSTimeInterval kOvershoot = 2;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+- (BOOL)zoomed {
+  return _pageEdges.left != _pageEdges.right || _pageEdges.top != _pageEdges.bottom;
+}
 
 - (void)setDataSource:(id<TTScrollViewDataSource>)dataSource {
   _dataSource = dataSource;
@@ -1117,19 +1155,31 @@ static const NSTimeInterval kOvershoot = 2;
     _visiblePageIndex = kInvalidIndex;
     _pageEdges = _pageStartEdges = UIEdgeInsetsZero;
     
-    [self stopAnimation:YES];
-    [self stopDragging:NO];
-    [self updateZooming:UIEdgeInsetsZero];
-    _touch1 = nil;
-    _touch2 = nil;
-    _touchCount = 0;
-
+    [self cancelTouches];
     [self setNeedsLayout];
   }
 }
 
 - (UIView*)pageAtIndex:(NSInteger)pageIndex {
   return [self pageAtIndex:pageIndex create:NO];
+}
+
+- (void)zoomToFit {
+  [self startAnimationTo:[self reversePageEdges] duration:kBounceDuration];
+}
+
+- (void)zoomToDistance:(CGFloat)distance {
+  UIEdgeInsets insets = UIEdgeInsetsMake(distance, distance, -1 * distance, -1 * distance);
+  [self startAnimationTo:insets duration:kBounceDuration];
+}
+
+- (void)cancelTouches {
+  [self stopAnimation:YES];
+  [self stopDragging:NO];
+  [self updateZooming:UIEdgeInsetsZero];
+  _touch1 = nil;
+  _touch2 = nil;
+  _touchCount = 0;
 }
 
 @end

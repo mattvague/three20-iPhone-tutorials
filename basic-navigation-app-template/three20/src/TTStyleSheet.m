@@ -31,13 +31,27 @@ static TTStyleSheet* gStyleSheet = nil;
 - (id)init {
   if (self = [super init]) {
     _styles = nil;
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                          selector:@selector(didReceiveMemoryWarning:)
+                                          name:UIApplicationDidReceiveMemoryWarningNotification  
+                                          object:nil];  
   }
   return self;
 }
 
 - (void)dealloc {
-  [_styles release];
+  [[NSNotificationCenter defaultCenter] removeObserver:self
+                                        name:UIApplicationDidReceiveMemoryWarningNotification  
+                                        object:nil];  
+  TT_RELEASE_SAFELY(_styles);
   [super dealloc];
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////
+// NSNotifications
+
+- (void)didReceiveMemoryWarning:(void*)object {
+  [self freeMemory];
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -68,8 +82,7 @@ static TTStyleSheet* gStyleSheet = nil;
 }
 
 - (void)freeMemory {
-  [_styles release];
-  _styles = nil;
+  TT_RELEASE_SAFELY(_styles);
 }
 
 @end

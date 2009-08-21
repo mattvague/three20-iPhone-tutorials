@@ -13,14 +13,10 @@
 @interface TTTableView : UITableView {
   TTStyledTextLabel* _highlightedLabel;
   CGPoint _highlightStartPoint;
-  NSTimer* _highlightTimer;
-  UIView* _menuView;
-  UITableViewCell* _menuCell;
+  CGFloat _contentOrigin;
 }
 
 @property(nonatomic,retain) TTStyledTextLabel* highlightedLabel;
-
-- (void)showMenu:(UIView*)view forCell:(UITableViewCell*)cell animated:(BOOL)animated;
-- (void)hideMenu:(BOOL)animated;
+@property(nonatomic) CGFloat contentOrigin;
 
 @end

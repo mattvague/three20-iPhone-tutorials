@@ -1,8 +1,9 @@
 #import "Three20/TTSearchTextField.h"
-#import "Three20/TTNavigationCenter.h"
+#import "Three20/TTNavigator.h"
 #import "Three20/TTView.h"
 #import "Three20/TTDefaultStyleSheet.h"
-#import "Three20/TTTableFieldCell.h"
+#import "Three20/TTTableView.h"
+#import "Three20/TTTableItemCell.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -33,6 +34,10 @@ static const CGFloat kDesiredTableHeight = 150;
   return self;
 }
 
+- (void)dealloc {
+  [super dealloc];
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // UITextFieldDelegate
 
@@ -61,10 +66,6 @@ static const CGFloat kDesiredTableHeight = 150;
 - (void)textFieldDidEndEditing:(UITextField *)textField {
   if ([_delegate respondsToSelector:@selector(textFieldDidEndEditing:)]) {
     [_delegate textFieldDidEndEditing:textField];
-  }
-  
-  if (_textField.dataSource) {
-    textField.text = @"";
   }
 }
 
@@ -103,7 +104,7 @@ static const CGFloat kDesiredTableHeight = 150;
     if (!_textField.searchesAutomatically) {
       [_textField search];
     } else {
-      [_textField resignFirstResponder];
+      [_textField performSelector:@selector(doneAction)];
     }
   }
   return shouldReturn;
@@ -149,21 +150,22 @@ static const CGFloat kDesiredTableHeight = 150;
 }
 
 - (void)dealloc {
-  [_dataSource.delegates removeObject:self];
-  [_dataSource release];
-  [_internal release];
-  [_tableView release];
-  [_shadowView release];
-  [_screenView release];
-  [_previousNavigationItem release];
-  [_previousRightBarButtonItem release];
+  [_dataSource.model.delegates removeObject:self];
+  _tableView.delegate = nil;
+  TT_RELEASE_SAFELY(_dataSource);
+  TT_RELEASE_SAFELY(_internal);
+  TT_RELEASE_SAFELY(_tableView);
+  TT_RELEASE_SAFELY(_shadowView);
+  TT_RELEASE_SAFELY(_screenView);
+  TT_RELEASE_SAFELY(_previousNavigationItem);
+  TT_RELEASE_SAFELY(_previousRightBarButtonItem);
   [super dealloc];
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 - (void)showDoneButton:(BOOL)show {
-  UIViewController* controller = [TTNavigationCenter defaultCenter].visibleViewController;
+  UIViewController* controller = [TTNavigator navigator].visibleViewController;
   if (controller) {
     if (show) {
       _previousNavigationItem = [controller.navigationItem retain];
@@ -175,10 +177,8 @@ static const CGFloat kDesiredTableHeight = 150;
       [controller.navigationItem setRightBarButtonItem:doneButton animated:YES];
     } else {
       [_previousNavigationItem setRightBarButtonItem:_previousRightBarButtonItem animated:YES];
-      [_previousRightBarButtonItem release];
-      _previousRightBarButtonItem = nil;
-      [_previousNavigationItem release];
-      _previousNavigationItem = nil;
+      TT_RELEASE_SAFELY(_previousRightBarButtonItem);
+      TT_RELEASE_SAFELY(_previousNavigationItem);
     }
   }
 }
@@ -221,6 +221,7 @@ static const CGFloat kDesiredTableHeight = 150;
     [self search];
   }
 }
+
 - (void)dispatchUpdate:(NSTimer*)timer {
   _searchTimer = nil;
   [self autoSearch];
@@ -232,9 +233,17 @@ static const CGFloat kDesiredTableHeight = 150;
     selector:@selector(dispatchUpdate:) userInfo:nil repeats:NO];
 }
 
+- (BOOL)hasSearchResults {
+  return (![_dataSource respondsToSelector:@selector(numberOfSectionsInTableView:)]
+          || [_dataSource numberOfSectionsInTableView:_tableView])
+      && [_dataSource tableView:_tableView numberOfRowsInSection:0];
+}
+
 - (void)reloadTable {
-  if ([_dataSource numberOfSectionsInTableView:_tableView]
-      && [_dataSource tableView:_tableView numberOfRowsInSection:0]) {
+  [_dataSource tableViewDidLoadModel:self.tableView];
+
+  if ([self hasSearchResults]) {
+    [self layoutIfNeeded];
     [self showSearchResults:YES];
     [self.tableView reloadData];
   } else {
@@ -250,6 +259,10 @@ static const CGFloat kDesiredTableHeight = 150;
 
 - (void)doneAction {
   [self resignFirstResponder];
+
+  if (self.dataSource) {
+    self.text = @"";
+  }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -275,9 +288,9 @@ static const CGFloat kDesiredTableHeight = 150;
   if (_rowHeight) {
     return _rowHeight;
   } else {
-    id item = [_dataSource tableView:tableView objectForRowAtIndexPath:indexPath];
-    Class cls = [_dataSource tableView:tableView cellClassForObject:item];
-    return [cls tableView:_tableView rowHeightForItem:item];
+    id object = [_dataSource tableView:tableView objectForRowAtIndexPath:indexPath];
+    Class cls = [_dataSource tableView:tableView cellClassForObject:object];
+    return [cls tableView:_tableView rowHeightForObject:object];
   }
 }
 
@@ -287,25 +300,29 @@ static const CGFloat kDesiredTableHeight = 150;
     UITableViewCell* cell = [tableView cellForRowAtIndexPath:indexPath];
     if (cell.selectionStyle != UITableViewCellSeparatorStyleNone) {
       [_internal.delegate performSelector:@selector(textField:didSelectObject:) withObject:self
-        withObject:object];      
+                          withObject:object];      
     }
   }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// TTTableViewDataSourceDelegate
+// TTModelDelegate
 
-- (void)dataSourceDidStartLoad:(id<TTTableViewDataSource>)dataSource {
+- (void)modelDidStartLoad:(id<TTModel>)model {
   if (!_searchesAutomatically) {
     [self reloadTable];
   }
 }
 
-- (void)dataSourceDidFinishLoad:(id<TTTableViewDataSource>)dataSource {
+- (void)modelDidFinishLoad:(id<TTModel>)model {
   [self reloadTable];
 }
 
-- (void)dataSource:(id<TTTableViewDataSource>)dataSource didFailLoadWithError:(NSError*)error {
+- (void)modelDidChange:(id<TTModel>)model {
+  [self reloadTable];
+}
+
+- (void)model:(id<TTModel>)model didFailLoadWithError:(NSError*)error {
   [self reloadTable];
 }
 
@@ -314,7 +331,7 @@ static const CGFloat kDesiredTableHeight = 150;
 
 - (void)didBeginEditing {
   if (_dataSource) {
-    UIScrollView* scrollView = (UIScrollView*)[self firstParentOfClass:[UIScrollView class]];
+    UIScrollView* scrollView = (UIScrollView*)[self ancestorOrSelfWithClass:[UIScrollView class]];
     scrollView.scrollEnabled = NO;
     scrollView.scrollsToTop = NO;
 
@@ -324,7 +341,7 @@ static const CGFloat kDesiredTableHeight = 150;
     if (_showsDarkScreen) {
       [self showDarkScreen:YES];
     }
-    if (self.hasText) {
+    if (self.hasText && self.hasSearchResults) {
       [self showSearchResults:YES];
     }
   }
@@ -332,7 +349,7 @@ static const CGFloat kDesiredTableHeight = 150;
 
 - (void)didEndEditing {
   if (_dataSource) {
-    UIScrollView* scrollView = (UIScrollView*)[self firstParentOfClass:[UIScrollView class]];
+    UIScrollView* scrollView = (UIScrollView*)[self ancestorOrSelfWithClass:[UIScrollView class]];
     scrollView.scrollEnabled = YES;
     scrollView.scrollsToTop = YES;
     
@@ -352,16 +369,16 @@ static const CGFloat kDesiredTableHeight = 150;
 
 - (void)setDataSource:(id<TTTableViewDataSource>)dataSource {
   if (dataSource != _dataSource) {
-    [_dataSource.delegates removeObject:self];
+    [_dataSource.model.delegates removeObject:self];
     [_dataSource release];
     _dataSource = [dataSource retain];
-    [_dataSource.delegates addObject:self];
+    [_dataSource.model.delegates addObject:self];
   }
 }
 
 - (UITableView*)tableView {
   if (!_tableView) {
-    _tableView = [[UITableView alloc] initWithFrame:CGRectZero style:UITableViewStylePlain];
+    _tableView = [[TTTableView alloc] initWithFrame:CGRectZero style:UITableViewStylePlain];
     _tableView.backgroundColor = TTSTYLEVAR(searchTableBackgroundColor);
     _tableView.separatorColor = TTSTYLEVAR(searchTableSeparatorColor);
     _tableView.rowHeight = _rowHeight;
@@ -391,7 +408,7 @@ static const CGFloat kDesiredTableHeight = 150;
 - (void)search {
   if (_dataSource) {
     NSString* text = self.searchText;
-    [_dataSource tableView:self.tableView search:text];
+    [_dataSource search:text];
   }
 }
 
@@ -400,7 +417,7 @@ static const CGFloat kDesiredTableHeight = 150;
     self.tableView;
     
     if (!_shadowView) {
-      _shadowView = [[TTView alloc] initWithFrame:CGRectZero];
+      _shadowView = [[TTView alloc] init];
       _shadowView.style = TTSTYLE(searchTableShadow);
       _shadowView.backgroundColor = [UIColor clearColor];
       _shadowView.userInteractionEnabled = NO;
@@ -418,17 +435,16 @@ static const CGFloat kDesiredTableHeight = 150;
         [superview addSubview:_shadowView];
       }
     }
+    
+    [_tableView deselectRowAtIndexPath:_tableView.indexPathForSelectedRow animated:NO];
   } else {
-    UIView* parent = self.superview;
-    if (parent) {
-      [_tableView removeFromSuperview];
-      [_shadowView removeFromSuperview];
-    }
+    [_tableView removeFromSuperview];
+    [_shadowView removeFromSuperview];
   }
 }
 
 - (UIView*)superviewForSearchResults {
-  UIScrollView* scrollView = (UIScrollView*)[self firstParentOfClass:[UIScrollView class]];
+  UIScrollView* scrollView = (UIScrollView*)[self ancestorOrSelfWithClass:[UIScrollView class]];
   if (scrollView) {
     return scrollView;
   } else {
@@ -451,9 +467,9 @@ static const CGFloat kDesiredTableHeight = 150;
     y += view.top;
     view = view.superview;
   }  
-
+  
   CGFloat height = self.height;
-  CGFloat keyboardHeight = withKeyboard ? KEYBOARD_HEIGHT : 0;
+  CGFloat keyboardHeight = withKeyboard ? TT_KEYBOARD_HEIGHT : 0;
   CGFloat tableHeight = self.window.height - (self.screenY + height + keyboardHeight);
     
   return CGRectMake(0, y + self.height-1, superview.frame.size.width, tableHeight+1);

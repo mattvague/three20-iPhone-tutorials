@@ -1,6 +1,4 @@
 #import "RootViewDataSource.h"
-#import "BNField.h"
-#import "BNCell.h"
 
 @implementation RootViewDataSource
 
@@ -10,12 +8,7 @@
 
 + (RootViewDataSource*)rootViewDataSource {
 	RootViewDataSource* dataSource =  [[[RootViewDataSource alloc] initWithItems:
-									[NSMutableArray arrayWithObjects:
-									 [[[BNSubtextTableField alloc] initWithText:@"Title" subtext:@"Subtitle"] autorelease],
-									 nil]] autorelease];
-
-	
-	
+										[NSMutableArray arrayWithObjects: nil]] autorelease];
 	return dataSource;
 }
 
@@ -30,8 +23,8 @@
 
 - (Class)tableView:(UITableView*)tableView cellClassForObject:(id) object { 
 	
-	if ([object isKindOfClass:[BNSubtextTableField class]]) { 
-		return [BNSubtextTableFieldCell class]; 	
+	if ([object isKindOfClass:nil]) { 
+		return nil;
 	} else { 
 		return [super tableView:tableView cellClassForObject:object]; 
 	}
