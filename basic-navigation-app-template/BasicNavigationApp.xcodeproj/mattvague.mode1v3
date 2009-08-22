@@ -271,7 +271,7 @@
 							<key>PBXSmartGroupTreeModuleOutlineStateSelectionKey</key>
 							<array>
 								<array>
-									<integer>8</integer>
+									<integer>9</integer>
 									<integer>2</integer>
 									<integer>0</integer>
 								</array>
@@ -314,7 +314,7 @@
 								<key>PBXProjectModuleGUID</key>
 								<string>1CE0B20306471E060097A5F4</string>
 								<key>PBXProjectModuleLabel</key>
-								<string>RootViewDataSource.m</string>
+								<string>BNDefaultStylesheet.h</string>
 								<key>PBXSplitModuleInNavigatorKey</key>
 								<dict>
 									<key>Split0</key>
@@ -322,21 +322,21 @@
 										<key>PBXProjectModuleGUID</key>
 										<string>1CE0B20406471E060097A5F4</string>
 										<key>PBXProjectModuleLabel</key>
-										<string>RootViewDataSource.m</string>
+										<string>BNDefaultStylesheet.h</string>
 										<key>_historyCapacity</key>
 										<integer>0</integer>
 										<key>bookmark</key>
-										<string>BD3F0F90103F6A2B009EB89B</string>
+										<string>BD39A866103F6FF50000464E</string>
 										<key>history</key>
 										<array>
 											<string>BD3F0F45103F6989009EB89B</string>
 											<string>BD3F0F46103F6989009EB89B</string>
 											<string>BD3F0F47103F6989009EB89B</string>
 											<string>BD3F0F48103F6989009EB89B</string>
-											<string>BD3F0F7E103F6A2B009EB89B</string>
 											<string>BD3F0F7F103F6A2B009EB89B</string>
-											<string>BD3F0F80103F6A2B009EB89B</string>
-											<string>BD3F0F81103F6A2B009EB89B</string>
+											<string>BD39A862103F6FF50000464E</string>
+											<string>BD39A863103F6FF50000464E</string>
+											<string>BD3F0F7E103F6A2B009EB89B</string>
 										</array>
 										<key>prevStack</key>
 										<array>
@@ -346,11 +346,10 @@
 											<string>BD3F0F4E103F6989009EB89B</string>
 											<string>BD3F0F4F103F6989009EB89B</string>
 											<string>BD3F0F50103F6989009EB89B</string>
-											<string>BD3F0F82103F6A2B009EB89B</string>
 											<string>BD3F0F83103F6A2B009EB89B</string>
 											<string>BD3F0F84103F6A2B009EB89B</string>
-											<string>BD3F0F85103F6A2B009EB89B</string>
-											<string>BD3F0F86103F6A2B009EB89B</string>
+											<string>BD39A864103F6FF50000464E</string>
+											<string>BD39A865103F6FF50000464E</string>
 										</array>
 									</dict>
 									<key>SplitCount</key>
@@ -408,9 +407,9 @@
 			</array>
 			<key>TableOfContents</key>
 			<array>
-				<string>BD3F0F5D103F69CB009EB89B</string>
+				<string>BD39A867103F6FF50000464E</string>
 				<string>1CE0B1FE06471DED0097A5F4</string>
-				<string>BD3F0F5E103F69CB009EB89B</string>
+				<string>BD39A868103F6FF50000464E</string>
 				<string>1CE0B20306471E060097A5F4</string>
 				<string>1CE0B20506471E060097A5F4</string>
 			</array>
@@ -544,10 +543,7 @@
 	<integer>5</integer>
 	<key>WindowOrderList</key>
 	<array>
-		<string>1C78EAAD065D492600B07095</string>
-		<string>1CD10A99069EF8BA00B06720</string>
-		<string>BDC75132103A1F40008A3F1D</string>
-		<string>/Users/mattvague/Work/Projects/Blog/Three20/three20-iPhone-tutorials/basic-navigation-app-template 2/BasicNavigationApp.xcodeproj</string>
+		<string>/Users/mattvague/Work/Projects/Blog/Three20/three20-iPhone-tutorials/basic-navigation-app-template/BasicNavigationApp.xcodeproj</string>
 	</array>
 	<key>WindowString</key>
 	<string>72 287 1486 699 0 0 1680 1028 </string>

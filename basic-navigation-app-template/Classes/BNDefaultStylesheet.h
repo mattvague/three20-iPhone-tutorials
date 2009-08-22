@@ -3,9 +3,10 @@
 
 @interface BNDefaultStyleSheet : TTDefaultStyleSheet
 
-@property(nonatomic,readonly) UIColor* myFirstColor;
-
-@property(nonatomic,readonly) UIFont* myFirstFont;
+@property(nonatomic,readonly) UIColor* myHeadingColor;
+@property(nonatomic,readonly) UIColor* mySubtextColor;
+@property(nonatomic,readonly) UIFont* myHeadingFont;
+@property(nonatomic,readonly) UIFont* mySubtextFont;
 
 
 @end
