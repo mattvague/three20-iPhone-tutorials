@@ -29,12 +29,11 @@
 // public fonts
 
 - (UIFont*)myHeadingFont {
-	return [UIFont boldSystemFontOfSize:15];
+	return [UIFont boldSystemFontOfSize:16];
 }
 
 - (UIFont*)mySubtextFont {
-	return [UIFont systemFontOfSize:14];
+	return [UIFont systemFontOfSize:13];
 }
-
 
 @end
