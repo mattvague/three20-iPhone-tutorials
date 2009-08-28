@@ -302,7 +302,7 @@
 				);
 				PREBINDING = NO;
 				"PROVISIONING_PROFILE[sdk=iphoneos*]" = "C8CB2AE8-1567-41BA-97C2-83F0ED862F3B";
-				SDKROOT = iphoneos2.2.1;
+				SDKROOT = iphoneos3.0;
 				USER_HEADER_SEARCH_PATHS = "";
 			};
 			name = Debug;

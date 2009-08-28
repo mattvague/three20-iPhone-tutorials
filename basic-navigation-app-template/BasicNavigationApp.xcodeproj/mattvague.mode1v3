@@ -271,8 +271,7 @@
 							<key>PBXSmartGroupTreeModuleOutlineStateSelectionKey</key>
 							<array>
 								<array>
-									<integer>6</integer>
-									<integer>2</integer>
+									<integer>1</integer>
 									<integer>0</integer>
 								</array>
 							</array>
@@ -326,7 +325,7 @@
 										<key>_historyCapacity</key>
 										<integer>0</integer>
 										<key>bookmark</key>
-										<string>BD29991A1040D6ED0015C464</string>
+										<string>BD3421BC1047567200AE6A70</string>
 										<key>history</key>
 										<array>
 											<string>BD3F0F45103F6989009EB89B</string>
@@ -336,7 +335,7 @@
 											<string>BD29990F1040D6ED0015C464</string>
 											<string>BD2999101040D6ED0015C464</string>
 											<string>BD2999111040D6ED0015C464</string>
-											<string>BD2999121040D6ED0015C464</string>
+											<string>BD29991A1040D6ED0015C464</string>
 										</array>
 										<key>prevStack</key>
 										<array>
@@ -348,13 +347,6 @@
 											<string>BD3F0F50103F6989009EB89B</string>
 											<string>BD3F0F83103F6A2B009EB89B</string>
 											<string>BD3F0F84103F6A2B009EB89B</string>
-											<string>BD2999131040D6ED0015C464</string>
-											<string>BD2999141040D6ED0015C464</string>
-											<string>BD2999151040D6ED0015C464</string>
-											<string>BD2999161040D6ED0015C464</string>
-											<string>BD2999171040D6ED0015C464</string>
-											<string>BD2999181040D6ED0015C464</string>
-											<string>BD2999191040D6ED0015C464</string>
 										</array>
 									</dict>
 									<key>SplitCount</key>
@@ -412,9 +404,9 @@
 			</array>
 			<key>TableOfContents</key>
 			<array>
-				<string>BD29991B1040D6ED0015C464</string>
+				<string>BD3421B31047567200AE6A70</string>
 				<string>1CE0B1FE06471DED0097A5F4</string>
-				<string>BD29991C1040D6ED0015C464</string>
+				<string>BD3421B41047567200AE6A70</string>
 				<string>1CE0B20306471E060097A5F4</string>
 				<string>1CE0B20506471E060097A5F4</string>
 			</array>
@@ -548,6 +540,7 @@
 	<integer>5</integer>
 	<key>WindowOrderList</key>
 	<array>
+		<string>BDC75132103A1F40008A3F1D</string>
 		<string>1CD10A99069EF8BA00B06720</string>
 		<string>/Users/mattvague/Work/Projects/Blog/Three20/three20-iPhone-tutorials/basic-navigation-app-template/BasicNavigationApp.xcodeproj</string>
 	</array>
@@ -629,7 +622,7 @@
 			<key>TableOfContents</key>
 			<array>
 				<string>BDC75132103A1F40008A3F1D</string>
-				<string>BD8EC2E61040D65300667257</string>
+				<string>BD3421B51047567200AE6A70</string>
 				<string>1CD0528F0623707200166675</string>
 				<string>XCMainBuildResultsModuleGUID</string>
 			</array>
@@ -749,13 +742,13 @@
 			<key>TableOfContents</key>
 			<array>
 				<string>1CD10A99069EF8BA00B06720</string>
-				<string>BD29991D1040D6ED0015C464</string>
+				<string>BD3421B61047567200AE6A70</string>
 				<string>1C162984064C10D400B95A72</string>
-				<string>BD29991E1040D6ED0015C464</string>
-				<string>BD29991F1040D6ED0015C464</string>
-				<string>BD2999201040D6ED0015C464</string>
-				<string>BD2999211040D6ED0015C464</string>
-				<string>BD2999221040D6ED0015C464</string>
+				<string>BD3421B71047567200AE6A70</string>
+				<string>BD3421B81047567200AE6A70</string>
+				<string>BD3421B91047567200AE6A70</string>
+				<string>BD3421BA1047567200AE6A70</string>
+				<string>BD3421BB1047567200AE6A70</string>
 			</array>
 			<key>ToolbarConfiguration</key>
 			<string>xcode.toolbar.config.debugV3</string>

@@ -228,8 +228,6 @@
 			<key>Layout</key>
 			<array>
 				<dict>
-					<key>BecomeActive</key>
-					<true/>
 					<key>ContentConfiguration</key>
 					<dict>
 						<key>PBXBottomSmartGroupGIDs</key>
@@ -341,6 +339,8 @@
 							<string>312pt</string>
 						</dict>
 						<dict>
+							<key>BecomeActive</key>
+							<true/>
 							<key>ContentConfiguration</key>
 							<dict>
 								<key>PBXProjectModuleGUID</key>
@@ -377,9 +377,9 @@
 			</array>
 			<key>TableOfContents</key>
 			<array>
-				<string>BDCC89A6103F6A710080F9F6</string>
+				<string>BD88FE7810474B3C002CDACD</string>
 				<string>1CE0B1FE06471DED0097A5F4</string>
-				<string>BDCC89A7103F6A710080F9F6</string>
+				<string>BD88FE7910474B3C002CDACD</string>
 				<string>1CE0B20306471E060097A5F4</string>
 				<string>1CE0B20506471E060097A5F4</string>
 			</array>
@@ -513,9 +513,8 @@
 	<integer>5</integer>
 	<key>WindowOrderList</key>
 	<array>
-		<string>1C78EAAD065D492600B07095</string>
-		<string>1CD10A99069EF8BA00B06720</string>
 		<string>BDCC89A8103F6A710080F9F6</string>
+		<string>1CD10A99069EF8BA00B06720</string>
 		<string>/Users/mattvague/Work/Projects/Blog/Three20/three20-iPhone-tutorials/custom-cells-tutorial/BasicNavigationApp.xcodeproj</string>
 	</array>
 	<key>WindowString</key>
@@ -596,7 +595,7 @@
 			<key>TableOfContents</key>
 			<array>
 				<string>BDCC89A8103F6A710080F9F6</string>
-				<string>BDCC89A9103F6A710080F9F6</string>
+				<string>BD88FE7A10474B3C002CDACD</string>
 				<string>1CD0528F0623707200166675</string>
 				<string>XCMainBuildResultsModuleGUID</string>
 			</array>
@@ -638,8 +637,8 @@
 										<string>yes</string>
 										<key>sizes</key>
 										<array>
-											<string>{{0, 0}, {316, 185}}</string>
-											<string>{{316, 0}, {378, 185}}</string>
+											<string>{{0, 0}, {316, 194}}</string>
+											<string>{{316, 0}, {378, 194}}</string>
 										</array>
 									</dict>
 									<key>VerticalSplitView</key>
@@ -654,8 +653,8 @@
 										<string>yes</string>
 										<key>sizes</key>
 										<array>
-											<string>{{0, 0}, {694, 185}}</string>
-											<string>{{0, 185}, {694, 196}}</string>
+											<string>{{0, 0}, {694, 194}}</string>
+											<string>{{0, 194}, {694, 187}}</string>
 										</array>
 									</dict>
 								</dict>
@@ -688,7 +687,7 @@
 										<real>148</real>
 									</array>
 									<key>Frame</key>
-									<string>{{316, 0}, {378, 185}}</string>
+									<string>{{316, 0}, {378, 194}}</string>
 									<key>RubberWindowFrame</key>
 									<string>343 434 694 422 0 0 1680 1028 </string>
 								</dict>
@@ -716,13 +715,13 @@
 			<key>TableOfContents</key>
 			<array>
 				<string>1CD10A99069EF8BA00B06720</string>
-				<string>BDCC89AA103F6A890080F9F6</string>
+				<string>BD88FE7B10474B3C002CDACD</string>
 				<string>1C162984064C10D400B95A72</string>
-				<string>BDCC89AB103F6A890080F9F6</string>
-				<string>BDCC89AC103F6A890080F9F6</string>
-				<string>BDCC89AD103F6A890080F9F6</string>
-				<string>BDCC89AE103F6A890080F9F6</string>
-				<string>BDCC89AF103F6A890080F9F6</string>
+				<string>BD88FE7C10474B3C002CDACD</string>
+				<string>BD88FE7D10474B3C002CDACD</string>
+				<string>BD88FE7E10474B3C002CDACD</string>
+				<string>BD88FE7F10474B3C002CDACD</string>
+				<string>BD88FE8010474B3C002CDACD</string>
 			</array>
 			<key>ToolbarConfiguration</key>
 			<string>xcode.toolbar.config.debugV3</string>

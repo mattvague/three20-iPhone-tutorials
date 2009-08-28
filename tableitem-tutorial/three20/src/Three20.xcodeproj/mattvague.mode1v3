@@ -295,7 +295,7 @@
 							<real>283</real>
 						</array>
 						<key>RubberWindowFrame</key>
-						<string>-1635 124 1315 846 -1680 -77 1680 1050 </string>
+						<string>-1635 201 1315 846 -1680 0 1680 1050 </string>
 					</dict>
 					<key>Module</key>
 					<string>PBXSmartGroupTreeModule</string>
@@ -325,14 +325,14 @@
 										<key>_historyCapacity</key>
 										<integer>0</integer>
 										<key>bookmark</key>
-										<string>BD95E39B1040C99D00595504</string>
+										<string>BD88FE8E10475053002CDACD</string>
 										<key>history</key>
 										<array>
 											<string>BD4D64DB103F84F10051D0AA</string>
 											<string>BD4D65EE103F9AEF0051D0AA</string>
 											<string>BD4D65EF103F9AEF0051D0AA</string>
 											<string>BD4D65F0103F9AEF0051D0AA</string>
-											<string>BD95E39A1040C99D00595504</string>
+											<string>BD95E39B1040C99D00595504</string>
 										</array>
 										<key>prevStack</key>
 										<array>
@@ -354,7 +354,7 @@
 								<key>Frame</key>
 								<string>{{0, 0}, {1010, 627}}</string>
 								<key>RubberWindowFrame</key>
-								<string>-1635 124 1315 846 -1680 -77 1680 1050 </string>
+								<string>-1635 201 1315 846 -1680 0 1680 1050 </string>
 							</dict>
 							<key>Module</key>
 							<string>PBXNavigatorGroup</string>
@@ -374,7 +374,7 @@
 								<key>Frame</key>
 								<string>{{0, 632}, {1010, 173}}</string>
 								<key>RubberWindowFrame</key>
-								<string>-1635 124 1315 846 -1680 -77 1680 1050 </string>
+								<string>-1635 201 1315 846 -1680 0 1680 1050 </string>
 							</dict>
 							<key>Module</key>
 							<string>XCDetailModule</string>
@@ -398,9 +398,9 @@
 			</array>
 			<key>TableOfContents</key>
 			<array>
-				<string>BD95E31C1040BE7900595504</string>
+				<string>BD88FE8F10475053002CDACD</string>
 				<string>1CE0B1FE06471DED0097A5F4</string>
-				<string>BD95E31D1040BE7900595504</string>
+				<string>BD88FE9010475053002CDACD</string>
 				<string>1CE0B20306471E060097A5F4</string>
 				<string>1CE0B20506471E060097A5F4</string>
 			</array>
@@ -533,9 +533,11 @@
 	<key>WindowJustification</key>
 	<integer>5</integer>
 	<key>WindowOrderList</key>
-	<array/>
+	<array>
+		<string>/Users/mattvague/Work/Projects/Blog/Three20/three20-iPhone-tutorials/tableitem-tutorial/three20/src/Three20.xcodeproj</string>
+	</array>
 	<key>WindowString</key>
-	<string>-1635 124 1315 846 -1680 -77 1680 1050 </string>
+	<string>-1635 201 1315 846 -1680 0 1680 1050 </string>
 	<key>WindowToolsV3</key>
 	<array>
 		<dict>
